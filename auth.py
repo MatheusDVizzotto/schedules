@@ -40,30 +40,51 @@ auth_bp = Blueprint('auth', __name__)
 
 
 def get_flow():
-    """Build an OAuth Flow for the web login."""
+    """
+    Build an OAuth Flow for the web login.
+
+    Local dev : reads web_credentials.json from disk
+    Render    : reads GOOGLE_WEB_CREDENTIALS_JSON env var (base64-encoded)
+    """
     import json as _json
+    import base64 as _base64
+    import tempfile as _tempfile
 
-    # Validate credentials.json type — must be 'web', not 'installed'
-    if os.path.exists(CREDENTIALS_PATH):
-        with open(CREDENTIALS_PATH) as _f:
-            _data = _json.load(_f)
-        _type = 'web' if 'web' in _data else 'installed' if 'installed' in _data else 'unknown'
-        print(f">>> credentials.json type: {_type}", flush=True)
-        if _type == 'installed':
-            raise RuntimeError(
-                "credentials.json is type 'installed' (Desktop app) — "
-                "it must be type 'web' (Web application) for the login flow. "
-                "Create a new Web application credential in Google Cloud Console."
-            )
-
-    uri  = _callback_uri()
+    uri = _callback_uri()
     print(f">>> Building flow with redirect_uri: {uri}", flush=True)
 
-    flow = Flow.from_client_secrets_file(
-        CREDENTIALS_PATH,
-        scopes=LOGIN_SCOPES,
-        redirect_uri=uri,
-    )
+    # ── Render / production: load from env var ────────────────────────
+    web_creds_b64 = os.environ.get('GOOGLE_WEB_CREDENTIALS_JSON', '')
+    if web_creds_b64:
+        creds_data = _json.loads(_base64.b64decode(web_creds_b64).decode())
+        # Write to a temp file because Flow.from_client_secrets_file needs a path
+        tmp = _tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False)
+        _json.dump(creds_data, tmp)
+        tmp.flush()
+        tmp.close()
+        flow = Flow.from_client_secrets_file(tmp.name, scopes=LOGIN_SCOPES, redirect_uri=uri)
+        os.unlink(tmp.name)
+        return flow
+
+    # ── Local dev: load from disk ─────────────────────────────────────
+    if not os.path.exists(CREDENTIALS_PATH):
+        raise FileNotFoundError(
+            f"'{CREDENTIALS_PATH}' not found and GOOGLE_WEB_CREDENTIALS_JSON env var not set.\n"
+            "Local: make sure web_credentials.json exists.\n"
+            "Render: set GOOGLE_WEB_CREDENTIALS_JSON in the dashboard."
+        )
+
+    with open(CREDENTIALS_PATH) as _f:
+        _data = _json.load(_f)
+    _type = 'web' if 'web' in _data else 'installed' if 'installed' in _data else 'unknown'
+    print(f">>> credentials type: {_type}", flush=True)
+    if _type != 'web':
+        raise RuntimeError(
+            f"'{CREDENTIALS_PATH}' is type '{_type}' — must be 'web' (Web application). "
+            "Create a Web application credential in Google Cloud Console."
+        )
+
+    flow = Flow.from_client_secrets_file(CREDENTIALS_PATH, scopes=LOGIN_SCOPES, redirect_uri=uri)
     return flow
 
 
