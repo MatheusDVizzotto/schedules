@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Workers &amp; Proficiency</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <style>
+        .proficiency-matrix { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .proficiency-matrix table { font-size: 0.82rem; min-width: 600px; }
+        .proficiency-cell { min-width: 110px; }
+        .machine-name {
+            font-weight: bold;
+            background-color: var(--surface2);
+            color: var(--text);
+            white-space: nowrap;
+            position: sticky;
+            left: 0;
+            z-index: 1;
+        }
+        .worker-header {
+            background-color: var(--header-bg);
+            color: var(--text);
+            font-weight: bold;
+            writing-mode: vertical-rl;
+            text-orientation: mixed;
+            min-height: 130px;
+            vertical-align: bottom;
+        }
+        .editable-name {
+            border: 1px solid var(--input-border);
+            padding: 2px 5px;
+            border-radius: 3px;
+            cursor: pointer;
+            color: var(--text);
+            background: transparent;
+            font-size: 0.8rem;
+        }
+        .editable-name:hover { background-color: var(--filter-hover); }
+        @media (max-width: 575px) {
+            .proficiency-matrix table { font-size: 0.75rem; }
+            .proficiency-cell { min-width: 90px; }
+            .worker-header { min-height: 100px; }
+        }
+    </style>
+    <script>
+        (function(){
+            var t = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-user-edit"></i>
+                <span class="d-none d-sm-inline"> Edit Workers &amp; Proficiency</span>
+                <span class="d-inline d-sm-none"> Proficiency</span>
+            </span>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="/" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i>
+                    <span class="d-none d-md-inline"> Schedule</span>
+                </a>
+                <a href="/admin" class="btn btn-light btn-sm">
+                    <i class="fas fa-users-cog"></i>
+                    <span class="d-none d-md-inline"> Manage Workers</span>
+                </a>
+                <button id="darkModeToggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                    <span class="d-none d-sm-inline">Dark Mode</span>
+                </button>
+                <div class="d-flex align-items-center gap-2 ms-1">
+                    {% if session.user_picture %}
+                    <img src="{{ session.user_picture }}" alt="avatar"
+                         style="width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);">
+                    {% endif %}
+                    <span class="text-white d-none d-lg-inline" style="font-size:0.82rem;opacity:0.85;">
+                        {{ session.user_name or session.user_email }}
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light" style="font-size:0.78rem;padding:3px 8px;">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3 mt-md-4">
+        <div class="alert alert-info mb-3">
+            <i class="fas fa-info-circle"></i>
+            <strong>Instructions:</strong> Click worker names to rename them. Use the dropdowns to set proficiency.
+            <strong>MR</strong> = Main Role &nbsp;|&nbsp;
+            <strong>C</strong> = Competent &nbsp;|&nbsp;
+            <strong>T</strong> = Trainee &nbsp;|&nbsp;
+            <strong>None</strong> = Not Qualified
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-table"></i> Proficiency Matrix</h5>
+                <small class="text-white-50 d-none d-sm-inline">Scroll horizontally to see all workers →</small>
+            </div>
+            <div class="card-body p-0 proficiency-matrix">
+                <table class="table table-bordered table-sm mb-0" id="proficiencyTable">
+                    <thead>
+                        <tr id="workerHeaders">
+                            <th class="machine-name align-middle">Machine / Worker</th>
+                        </tr>
+                    </thead>
+                    <tbody id="proficiencyBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="pb-4">
+            <button id="saveChanges" class="btn btn-success btn-lg w-100 w-sm-auto">
+                <i class="fas fa-save"></i> Save All Changes
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/workers.js') }}"></script>
+</body>
+</html>

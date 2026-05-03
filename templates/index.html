@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Machine Schedule Manager</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <!-- Apply saved theme before paint to avoid flash -->
+    <script>
+        (function(){
+            var t = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-calendar-alt"></i>
+                <span class="d-none d-sm-inline">Machine Schedule Manager</span>
+                <span class="d-inline d-sm-none">Scheduler</span>
+            </span>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="/workers" class="btn btn-light btn-sm">
+                    <i class="fas fa-user-edit"></i>
+                    <span class="d-none d-md-inline"> Edit Workers</span>
+                </a>
+                <a href="/admin" class="btn btn-light btn-sm">
+                    <i class="fas fa-users-cog"></i>
+                    <span class="d-none d-md-inline"> Manage Workers</span>
+                </a>
+                <button id="darkModeToggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                    <span class="d-none d-sm-inline">Dark Mode</span>
+                </button>
+                <div class="d-flex align-items-center gap-2 ms-1">
+                    {% if session.user_picture %}
+                    <img src="{{ session.user_picture }}" alt="avatar"
+                         style="width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);">
+                    {% endif %}
+                    <span class="text-white d-none d-lg-inline" style="font-size:0.82rem;opacity:0.85;">
+                        {{ session.user_name or session.user_email }}
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light" style="font-size:0.78rem;padding:3px 8px;">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3 mt-md-4">
+
+        <!-- Date row -->
+        <div class="row g-2 mb-4">
+            <div class="col-12 col-sm-6 col-md-3">
+                <label for="scheduleDate" class="form-label fw-semibold">Date</label>
+                <input type="date" id="scheduleDate" class="form-control">
+            </div>
+            <div class="col-12 col-sm-6 col-md-3 d-flex align-items-end">
+                <button id="loadSchedule" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-download"></i> Load Saved Schedule
+                </button>
+            </div>
+        </div>
+
+        <!-- STEP 1: Machine filter -->
+        <div class="card mb-4" id="stepOne">
+            <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <span class="badge bg-primary me-2">Step 1</span>
+                    <strong>Select machines to schedule today</strong>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button class="btn btn-sm btn-outline-secondary" id="selectAllMachines">Select All</button>
+                    <button class="btn btn-sm btn-outline-secondary" id="clearAllMachines">Clear All</button>
+                    <button class="btn btn-sm btn-success" id="proceedBtn" disabled>
+                        Assign Workers <i class="fas fa-arrow-right"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="card-body pb-2">
+                <div id="machineFilterContainer">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted">Loading machines...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- STEP 2: Worker assignment -->
+        <div id="stepTwo" style="display:none;">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+                <div>
+                    <span class="badge bg-success me-2">Step 2</span>
+                    <strong>Assign workers and times</strong>
+                    <span class="text-muted ms-2 small" id="selectedMachineCount"></span>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary" id="backToFilter">
+                    <i class="fas fa-arrow-left"></i> Change Machines
+                </button>
+            </div>
+
+            <!-- Proficiency legend -->
+            <div class="d-flex flex-wrap gap-2 mb-3 ps-1 small">
+                <span><span class="badge bg-primary">Main Role</span> Primary operator</span>
+                <span><span class="badge bg-success">Competent</span> Qualified independently</span>
+                <span><span class="badge bg-warning text-dark">Trainee</span> Needs supervision</span>
+                <span><span class="badge bg-light text-dark border">Not Qualified</span> Unqualified to operate</span>
+            </div>
+
+            <div id="scheduleContainer"></div>
+
+            <div class="mt-4 mb-5">
+                <button id="saveSchedule" class="btn btn-success btn-lg w-100 w-md-auto">
+                    <i class="fas fa-save"></i> Save Schedule to Google Drive
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

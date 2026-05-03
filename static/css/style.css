@@ -1,0 +1,322 @@
+/* ═══════════════════════════════════════════════════════════════
+   style.css — Machine Schedule Manager
+   Responsive (mobile/tablet/desktop) + Dark mode
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── CSS variables (light mode defaults) ─────────────────────── */
+:root {
+    --bg:           #f5f5f5;
+    --surface:      #ffffff;
+    --surface2:     #f8f9fa;
+    --border:       #dee2e6;
+    --text:         #212529;
+    --text-muted:   #6c757d;
+    --card-shadow:  0 2px 6px rgba(0,0,0,0.08);
+    --card-hover:   0 4px 14px rgba(0,0,0,0.13);
+    --header-bg:    #e9ecef;
+    --worker-bar:   #0d6efd;
+    --input-bg:     #ffffff;
+    --input-border: #ced4da;
+    --input-text:   #212529;
+    --scrollbar:    #adb5bd;
+    --filter-hover: #f0f2f5;
+    --table-stripe: #f8f9fa;
+}
+
+/* ── Dark mode variables ──────────────────────────────────────── */
+[data-theme="dark"] {
+    --bg:           #121212;
+    --surface:      #1e1e1e;
+    --surface2:     #2a2a2a;
+    --border:       #3a3a3a;
+    --text:         #e8e8e8;
+    --text-muted:   #9a9a9a;
+    --card-shadow:  0 2px 8px rgba(0,0,0,0.5);
+    --card-hover:   0 4px 18px rgba(0,0,0,0.7);
+    --header-bg:    #2c2c2c;
+    --worker-bar:   #4d9aff;
+    --input-bg:     #2a2a2a;
+    --input-border: #4a4a4a;
+    --input-text:   #e8e8e8;
+    --scrollbar:    #555;
+    --filter-hover: #2e2e2e;
+    --table-stripe: #242424;
+}
+
+/* ── Base ─────────────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+    background-color: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+    transition: background-color 0.25s, color 0.25s;
+    min-height: 100vh;
+}
+
+/* ── Navbar dark mode ─────────────────────────────────────────── */
+[data-theme="dark"] .navbar.bg-primary {
+    background-color: #1a3a6e !important;
+}
+
+/* ── Dark mode toggle button ──────────────────────────────────── */
+#darkModeToggle {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.4);
+    color: #fff;
+    border-radius: 20px;
+    padding: 4px 12px;
+    font-size: 0.85rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    transition: background 0.2s, border-color 0.2s;
+    white-space: nowrap;
+}
+#darkModeToggle:hover {
+    background: rgba(255,255,255,0.15);
+    border-color: rgba(255,255,255,0.7);
+}
+
+/* ── Cards ────────────────────────────────────────────────────── */
+.card {
+    background-color: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: var(--card-shadow);
+    transition: box-shadow 0.2s, background-color 0.25s;
+}
+.card:hover { box-shadow: var(--card-hover); }
+.card-header {
+    background-color: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+    border-radius: 10px 10px 0 0 !important;
+    color: var(--text);
+}
+.card-body { background-color: var(--surface); color: var(--text); }
+
+/* ── Form controls ────────────────────────────────────────────── */
+.form-control, .form-select, textarea {
+    background-color: var(--input-bg) !important;
+    border-color: var(--input-border) !important;
+    color: var(--input-text) !important;
+    transition: background-color 0.25s, border-color 0.25s, color 0.25s;
+}
+.form-control:focus, .form-select:focus, textarea:focus {
+    background-color: var(--input-bg) !important;
+    color: var(--input-text) !important;
+    border-color: var(--worker-bar) !important;
+    box-shadow: 0 0 0 0.2rem rgba(77,154,255,0.2) !important;
+}
+.form-label { color: var(--text); }
+.form-check-label { color: var(--text); cursor: pointer; }
+input[type="time"] { font-size: 0.95rem; }
+
+/* ── Step 1: Machine filter ───────────────────────────────────── */
+.filter-block {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    height: 100%;
+}
+.filter-block-title {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+}
+.filter-item { padding: 3px 2px; }
+.filter-item .form-check-label { font-size: 0.88rem; }
+.filter-item:hover {
+    background: var(--filter-hover);
+    border-radius: 4px;
+}
+
+/* ── Step 2: Machine cards ────────────────────────────────────── */
+.machine-card .card-header {
+    background-color: var(--header-bg);
+    font-size: 1rem;
+    font-weight: 600;
+}
+
+/* ── Workers list ─────────────────────────────────────────────── */
+.worker-list {
+    max-height: 380px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+.worker-list::-webkit-scrollbar { width: 5px; }
+.worker-list::-webkit-scrollbar-track { background: var(--surface2); border-radius: 4px; }
+.worker-list::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
+
+.worker-item {
+    padding: 7px 10px;
+    border-left: 3px solid var(--worker-bar);
+    background: var(--surface);
+    border-radius: 4px;
+    transition: box-shadow 0.15s;
+    color: var(--text);
+}
+.worker-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
+
+/* ── Alerts ───────────────────────────────────────────────────── */
+[data-theme="dark"] .alert-info {
+    background-color: #1a2e44;
+    border-color: #1e4976;
+    color: #8bbfea;
+}
+[data-theme="dark"] .alert-warning {
+    background-color: #332600;
+    border-color: #664d00;
+    color: #ffc107;
+}
+[data-theme="dark"] .alert-danger {
+    background-color: #2d0f0f;
+    border-color: #6b1c1c;
+    color: #f08080;
+}
+[data-theme="dark"] .alert-success {
+    background-color: #0a2a14;
+    border-color: #155724;
+    color: #75c990;
+}
+
+/* ── Badges ───────────────────────────────────────────────────── */
+.badge { font-size: 0.73rem; padding: 0.3em 0.6em; font-weight: 600; }
+[data-theme="dark"] .badge.bg-light { background-color: #3a3a3a !important; color: #ccc !important; }
+
+/* ── Tables (proficiency matrix) ──────────────────────────────── */
+[data-theme="dark"] .table {
+    color: var(--text);
+    border-color: var(--border);
+}
+[data-theme="dark"] .table th,
+[data-theme="dark"] .table td {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+[data-theme="dark"] .table-bordered { border-color: var(--border); }
+[data-theme="dark"] .machine-name { background-color: var(--surface2) !important; color: var(--text) !important; }
+[data-theme="dark"] .worker-header { background-color: var(--header-bg) !important; color: var(--text) !important; }
+[data-theme="dark"] .editable-name { border-color: var(--input-border) !important; color: var(--text) !important; }
+[data-theme="dark"] .editable-name:hover { background-color: var(--filter-hover) !important; }
+
+/* ── List groups ──────────────────────────────────────────────── */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+[data-theme="dark"] .list-group-item:hover { background-color: var(--surface2); }
+
+/* ── Buttons dark mode adjustments ───────────────────────────── */
+[data-theme="dark"] .btn-outline-secondary {
+    border-color: #555;
+    color: #bbb;
+}
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #333;
+    color: #eee;
+}
+[data-theme="dark"] .btn-outline-primary {
+    border-color: #4d9aff;
+    color: #4d9aff;
+}
+[data-theme="dark"] .btn-outline-primary:hover {
+    background-color: #1a3a6e;
+    color: #fff;
+}
+[data-theme="dark"] .btn-light {
+    background-color: #2c2c2c;
+    border-color: #444;
+    color: #ddd;
+}
+[data-theme="dark"] .btn-light:hover {
+    background-color: #3a3a3a;
+    color: #fff;
+}
+
+/* ── Save button ──────────────────────────────────────────────── */
+#saveSchedule { min-width: 220px; }
+#saveSchedule:disabled { cursor: not-allowed; }
+
+/* ── Text muted dark mode ─────────────────────────────────────── */
+[data-theme="dark"] .text-muted { color: var(--text-muted) !important; }
+
+/* ── ═══════════════════════════════════════════════════════════
+   RESPONSIVE BREAKPOINTS
+   ═══════════════════════════════════════════════════════════ */
+
+/* ── Mobile (≤ 575px) ─────────────────────────────────────────── */
+@media (max-width: 575px) {
+    .container-fluid { padding-left: 12px; padding-right: 12px; }
+
+    /* Navbar: stack title and buttons */
+    .navbar .container-fluid { flex-wrap: wrap; gap: 8px; }
+    .navbar-brand { font-size: 1rem; }
+    .navbar .d-flex { flex-wrap: wrap; gap: 4px; }
+    .navbar .btn-sm { font-size: 0.75rem; padding: 3px 8px; }
+    #darkModeToggle { font-size: 0.75rem; padding: 3px 8px; }
+
+    /* Step 1 header: stack controls */
+    .card-header.d-flex { flex-direction: column; align-items: flex-start !important; gap: 8px; }
+    .card-header .d-flex.gap-2 { flex-wrap: wrap; }
+
+    /* Filter blocks: single column on mobile */
+    #machineFilterContainer .row { --bs-gutter-x: 0.5rem; }
+    #machineFilterContainer .col-md-4 { width: 100%; }
+
+    /* Machine cards: stack workers + time vertically */
+    .machine-card .card-body .row { flex-direction: column; }
+    .machine-card .card-body [class*="col-"] { width: 100%; margin-bottom: 12px; }
+
+    /* Worker list: allow more height on mobile */
+    .worker-list { max-height: 260px; }
+
+    /* Save button: full width */
+    #saveSchedule { width: 100%; min-width: unset; }
+
+    /* Step 2 header: wrap */
+    #stepTwo > .d-flex { flex-wrap: wrap; gap: 8px; }
+
+    /* Proficiency legend: wrap tightly */
+    #stepTwo .d-flex.flex-wrap { gap: 6px !important; font-size: 0.78rem; }
+
+    /* Admin: full width inputs */
+    #newWorkerName { width: 100%; }
+}
+
+/* ── Tablet (576px – 991px) ───────────────────────────────────── */
+@media (min-width: 576px) and (max-width: 991px) {
+    /* Filter blocks: 2 columns on tablet */
+    #machineFilterContainer .col-md-4 { width: 50%; }
+
+    /* Machine cards: still stack on small tablet */
+    .machine-card .card-body .row { flex-direction: column; }
+    .machine-card .card-body [class*="col-"] { width: 100%; margin-bottom: 10px; }
+
+    .worker-list { max-height: 320px; }
+}
+
+/* ── Desktop (≥ 992px) ────────────────────────────────────────── */
+@media (min-width: 992px) {
+    /* Filter blocks: 3 columns */
+    #machineFilterContainer .col-md-4 { width: 33.333%; }
+
+    /* Machine cards: side-by-side */
+    .machine-card .card-body .row { flex-direction: row; }
+}
+
+/* ── Print ────────────────────────────────────────────────────── */
+@media print {
+    .navbar, .btn, #stepOne, #darkModeToggle { display: none !important; }
+    body { background: #fff !important; color: #000 !important; }
+    .card { box-shadow: none !important; border: 1px solid #ccc !important; }
+}

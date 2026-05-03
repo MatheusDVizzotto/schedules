@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker Management</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <script>
+        (function(){
+            var t = localStorage.getItem('theme') || 'light';
+            document.documentElement.setAttribute('data-theme', t);
+        })();
+    </script>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">
+                <i class="fas fa-users-cog"></i>
+                <span class="d-none d-sm-inline"> Worker Management</span>
+                <span class="d-inline d-sm-none"> Workers</span>
+            </span>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+                <a href="/workers" class="btn btn-light btn-sm">
+                    <i class="fas fa-table"></i>
+                    <span class="d-none d-md-inline"> Proficiency Matrix</span>
+                </a>
+                <a href="/" class="btn btn-light btn-sm">
+                    <i class="fas fa-arrow-left"></i>
+                    <span class="d-none d-md-inline"> Schedule</span>
+                </a>
+                <button id="darkModeToggle" aria-label="Toggle dark mode">
+                    <i class="fas fa-moon"></i>
+                    <span class="d-none d-sm-inline">Dark Mode</span>
+                </button>
+                <div class="d-flex align-items-center gap-2 ms-1">
+                    {% if session.user_picture %}
+                    <img src="{{ session.user_picture }}" alt="avatar"
+                         style="width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);">
+                    {% endif %}
+                    <span class="text-white d-none d-lg-inline" style="font-size:0.82rem;opacity:0.85;">
+                        {{ session.user_name or session.user_email }}
+                    </span>
+                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light" style="font-size:0.78rem;padding:3px 8px;">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-3 mt-md-4">
+
+        <!-- Add new worker -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <h5 class="mb-0"><i class="fas fa-user-plus"></i> Add New Worker</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Added to the next available column in the spreadsheet.
+                    Go to <a href="/workers">Edit Workers &amp; Proficiency</a> to set their qualifications.
+                </p>
+                <div class="row g-2 align-items-end">
+                    <div class="col-12 col-sm-7 col-md-5">
+                        <label for="newWorkerName" class="form-label">Worker Name</label>
+                        <input type="text" id="newWorkerName" class="form-control"
+                               placeholder="e.g. John Smith" maxlength="50">
+                    </div>
+                    <div class="col-12 col-sm-auto">
+                        <button id="addWorkerBtn" class="btn btn-success w-100 w-sm-auto">
+                            <i class="fas fa-plus"></i> Add Worker
+                        </button>
+                    </div>
+                </div>
+                <div id="addWorkerFeedback" class="mt-2"></div>
+            </div>
+        </div>
+
+        <!-- Active / Deleted workers -->
+        <div class="row g-3 pb-4">
+            <div class="col-12 col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-users"></i> Active Workers</h5>
+                        <span class="badge bg-white text-primary" id="activeCount">—</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul id="activeWorkersList" class="list-group list-group-flush">
+                            <li class="list-group-item text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm"></div> Loading...
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+                <div class="card h-100">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0"><i class="fas fa-user-slash"></i> Removed Workers</h5>
+                        <span class="badge bg-white text-secondary" id="deletedCount">—</span>
+                    </div>
+                    <div class="card-body p-0">
+                        <ul id="deletedWorkersList" class="list-group list-group-flush">
+                            <li class="list-group-item text-center text-muted py-4">
+                                <div class="spinner-border spinner-border-sm"></div> Loading...
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+</body>
+</html>

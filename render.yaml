@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: machine-schedule-manager
+    env: python
+    region: oregon          # change to sydney if available for lower latency
+    plan: free              # upgrade to starter for always-on
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 2 --timeout 120 --bind 0.0.0.0:$PORT
+    healthCheckPath: /login
+
+    # Environment variables — set SECRET values in the Render dashboard,
+    # NOT here. Only non-secret config belongs in this file.
+    envVars:
+      - key: FLASK_DEBUG
+        value: "false"
+      - key: SCHEDULE_MODE
+        value: NEW_SHEET_PER_DAY
+      # Add these in the Render dashboard (not here):
+      # GOOGLE_DRIVE_FILE_ID
+      # GOOGLE_CREDENTIALS_JSON
+      # GOOGLE_REFRESH_TOKEN
+      # SECRET_KEY
+      # ALLOWED_EMAILS

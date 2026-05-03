@@ -1,0 +1,461 @@
+"""
+app.py - Machine Schedule Manager (Google Drive Edition)
+Main Flask application with API endpoints.
+"""
+# Load .env FIRST — before any imports that read os.environ
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
+from flask import Flask, render_template, request, jsonify
+from datetime import datetime, timedelta
+import json
+import os
+
+from config import (
+    GOOGLE_DRIVE_FILE_ID, GOOGLE_DRIVE_FILENAME, USE_FILE_ID,
+    SECRET_KEY, DEBUG, HOST, PORT
+)
+from auth import auth_bp, login_required
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = SECRET_KEY
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
+app.register_blueprint(auth_bp)
+
+# In-memory set of soft-deleted workers; persisted to deleted_workers.json
+deleted_workers: set = set()
+DELETED_WORKERS_FILE = 'deleted_workers.json'
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def load_deleted_workers():
+    """Load soft-deleted workers from disk."""
+    global deleted_workers
+    if os.path.exists(DELETED_WORKERS_FILE):
+        try:
+            with open(DELETED_WORKERS_FILE, 'r') as f:
+                deleted_workers = set(json.load(f))
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: could not load {DELETED_WORKERS_FILE}: {e}")
+            deleted_workers = set()
+
+
+def save_deleted_workers():
+    """Persist soft-deleted workers to disk."""
+    try:
+        with open(DELETED_WORKERS_FILE, 'w') as f:
+            json.dump(list(deleted_workers), f)
+    except IOError as e:
+        print(f"Warning: could not save {DELETED_WORKERS_FILE}: {e}")
+
+
+def get_excel_handler():
+    """
+    Return an ExcelHandlerGDrive instance.
+    Lazy-import so startup errors are clearer.
+    """
+    from excel_handler_gdrive import ExcelHandlerGDrive
+    if USE_FILE_ID:
+        return ExcelHandlerGDrive(file_id=GOOGLE_DRIVE_FILE_ID)
+    return ExcelHandlerGDrive(filename=GOOGLE_DRIVE_FILENAME)
+
+
+# ---------------------------------------------------------------------------
+# Page routes
+# ---------------------------------------------------------------------------
+
+@app.route('/')
+@login_required
+def index():
+    return render_template('index.html')
+
+@app.route('/admin')
+@login_required
+def admin():
+    return render_template('admin.html')
+
+@app.route('/workers')
+@login_required
+def workers_page():
+    return render_template('workers.html')
+
+
+# ---------------------------------------------------------------------------
+# API – combined loader (what the frontend actually calls on page load)
+# ---------------------------------------------------------------------------
+
+@app.route('/api/workers/all', methods=['GET'])
+def get_all_data():
+    """
+    Single endpoint that returns machines, workers, and proficiencies together.
+    The frontend calls this once on page load instead of making three requests.
+    """
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        machines = handler.get_machines()
+        all_workers = handler.get_workers()
+        proficiencies = handler.get_all_proficiencies()
+        handler.close()
+
+        active_workers = [w for w in all_workers if w['name'] not in deleted_workers]
+
+        # JSON keys must be strings; convert int row/col keys to strings
+        prof_serialisable = {
+            str(machine_row): {str(worker_col): val for worker_col, val in worker_data.items()}
+            for machine_row, worker_data in proficiencies.items()
+        }
+
+        return jsonify({
+            'success': True,
+            'machines': machines,
+            'workers': active_workers,
+            'proficiencies': prof_serialisable,
+        })
+    except Exception as e:
+        print(f"Error in get_all_data: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – machines
+# ---------------------------------------------------------------------------
+
+@app.route('/api/machines', methods=['GET'])
+def get_machines():
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        machines = handler.get_machines()
+        handler.close()
+        return jsonify({'success': True, 'machines': machines})
+    except Exception as e:
+        print(f"Error in get_machines: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – workers
+# ---------------------------------------------------------------------------
+
+@app.route('/api/workers', methods=['GET'])
+def get_workers():
+    """Return all workers, excluding soft-deleted ones."""
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        all_workers = handler.get_workers()
+        handler.close()
+        active = [w for w in all_workers if w['name'] not in deleted_workers]
+        return jsonify({'success': True, 'workers': active})
+    except Exception as e:
+        print(f"Error in get_workers: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/workers/delete', methods=['POST'])
+def delete_worker():
+    """Soft-delete a worker."""
+    try:
+        data = request.get_json()
+        if not data or not data.get('worker_name'):
+            return jsonify({'success': False, 'error': 'worker_name is required'}), 400
+        name = data['worker_name'].strip()
+        deleted_workers.add(name)
+        save_deleted_workers()
+        return jsonify({'success': True, 'message': f'Worker "{name}" removed from future schedules'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/workers/restore', methods=['POST'])
+def restore_worker():
+    """Restore a soft-deleted worker."""
+    try:
+        data = request.get_json()
+        if not data or not data.get('worker_name'):
+            return jsonify({'success': False, 'error': 'worker_name is required'}), 400
+        name = data['worker_name'].strip()
+        deleted_workers.discard(name)   # FIX: .remove() raises KeyError if not present
+        save_deleted_workers()
+        return jsonify({'success': True, 'message': f'Worker "{name}" restored'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/workers/deleted', methods=['GET'])
+def get_deleted_workers():
+    return jsonify({'success': True, 'workers': list(deleted_workers)})
+
+
+@app.route('/api/workers/update', methods=['POST'])
+def update_worker():
+    """Rename a worker in the spreadsheet header row."""
+    try:
+        data = request.get_json()
+        if not data or not data.get('worker_col') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'worker_col and new_name are required'}), 400
+        handler = get_excel_handler()
+        handler.load()
+        handler.update_worker_name(int(data['worker_col']), data['new_name'].strip())
+        handler.close()
+        return jsonify({'success': True, 'message': 'Worker name updated'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/workers/add', methods=['POST'])
+def add_worker():
+    """
+    Add a new worker to the spreadsheet.
+
+    Writes the name into the next empty column in row 1 after the current
+    WORKER_COL_END, then increments WORKER_COL_END in config.py so the
+    new worker is picked up on the next load.
+
+    Body JSON: { "name": "Worker Name" }
+    """
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+
+        name = data['name'].strip()
+        if not name:
+            return jsonify({'success': False, 'error': 'name cannot be empty'}), 400
+
+        handler = get_excel_handler()
+        handler.load()
+        new_col = handler.add_worker(name)
+        handler.close()
+
+        # Bump WORKER_COL_END in config.py so the new worker is included next load
+        _update_config_worker_col_end(new_col)
+
+        return jsonify({
+            'success': True,
+            'message': f'Worker "{name}" added at column {new_col}',
+            'col': new_col,
+            'name': name,
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in add_worker:\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _update_config_worker_col_end(new_col: int):
+    """Update WORKER_COL_END in config.py if new_col exceeds current value."""
+    import re
+    try:
+        cfg = open('config.py').read()
+        current = int(re.search(r'WORKER_COL_END\s*=\s*(\d+)', cfg).group(1))
+        if new_col > current:
+            cfg = re.sub(r'(WORKER_COL_END\s*=\s*)\d+', lambda m: m.group(1) + str(new_col), cfg)
+            open('config.py', 'w').write(cfg)
+            print(f"  Updated WORKER_COL_END: {current} → {new_col}")
+    except Exception as e:
+        print(f"  Warning: could not update config.py: {e}")
+
+
+# ---------------------------------------------------------------------------
+# API – proficiency
+# ---------------------------------------------------------------------------
+
+@app.route('/api/proficiency', methods=['GET'])
+def get_proficiency():
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        data = handler.get_all_proficiencies()
+        handler.close()
+        return jsonify({'success': True, 'proficiency': data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/proficiency/update', methods=['POST'])
+def update_proficiency():
+    """Bulk-update proficiency values."""
+    try:
+        data = request.get_json()
+        if not data or 'proficiencies' not in data:
+            return jsonify({'success': False, 'error': 'proficiencies payload is required'}), 400
+        handler = get_excel_handler()
+        handler.load()
+        handler.update_proficiencies_bulk(data['proficiencies'])
+        handler.close()
+        return jsonify({'success': True, 'message': 'Proficiencies updated'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – schedule
+# ---------------------------------------------------------------------------
+
+@app.route('/api/schedule/save', methods=['POST'])
+def save_schedule():
+    """
+    Save a day's schedule to Google Drive.
+
+    Body JSON:
+        {
+            "date": "YYYY-MM-DD",
+            "schedule": [
+                {
+                    "machine":     "Machine Name",
+                    "worker":      "Worker Name",
+                    "role":        "Main Role" | "Competent" | "Trainee",
+                    "time_start":  "HH:MM",
+                    "time_finish": "HH:MM"
+                }, ...
+            ]
+        }
+    """
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No JSON body provided'}), 400
+
+        date_str = data.get('date')
+        schedule_data = data.get('schedule', [])
+
+        if not date_str:
+            return jsonify({'success': False, 'error': 'date is required (YYYY-MM-DD)'}), 400
+
+        try:
+            schedule_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+        except ValueError:
+            return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
+
+        if not schedule_data:
+            return jsonify({'success': False, 'error': 'schedule list is empty'}), 400
+
+        handler = get_excel_handler()
+        handler.load()
+        handler.save_schedule_visual(schedule_date, schedule_data)
+        handler.close()
+
+        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit'
+        return jsonify({
+            'success':    True,
+            'message':    'Schedule saved successfully to Google Drive',
+            'sheets_url': sheets_url,
+        })
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        print(f"Error in save_schedule:\n{tb}")
+        return jsonify({'success': False, 'error': str(e), 'traceback': tb}), 500
+
+
+@app.route('/api/schedule/<date_str>', methods=['GET'])
+def get_schedule(date_str):
+    try:
+        datetime.strptime(date_str, '%Y-%m-%d')
+    except ValueError:
+        return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        schedule = handler.get_schedule(datetime.strptime(date_str, '%Y-%m-%d').date())
+        handler.close()
+        return jsonify({'success': True, 'schedule': schedule})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – debug (remove before going to production)
+# ---------------------------------------------------------------------------
+
+@app.route('/api/debug/save-test', methods=['POST'])
+def debug_save_test():
+    """
+    Test endpoint — attempts a minimal write to Google Drive and returns
+    detailed info about every step so you can pinpoint where it fails.
+    """
+    import traceback
+    result = {
+        'step': None,
+        'file_id': None,
+        'sheet_names_before': [],
+        'sheet_names_after': [],
+        'sheets_added': [],
+        'bytes_written': None,
+        'upload_response': None,
+        'error': None,
+    }
+    try:
+        result['step'] = '1_get_handler'
+        handler = get_excel_handler()
+        result['file_id'] = handler.file_id
+
+        result['step'] = '2_load'
+        handler.load()
+        result['sheet_names_before'] = handler.workbook.sheetnames
+
+        result['step'] = '3_create_sheet'
+        import datetime
+        test_name = f"DEBUG-{datetime.datetime.now().strftime('%H%M%S')}"
+        ws = handler.workbook.create_sheet(test_name)
+        ws['A1'] = 'Debug test — safe to delete'
+        result['sheet_names_after'] = handler.workbook.sheetnames
+        result['sheets_added'] = [s for s in result['sheet_names_after']
+                                   if s not in result['sheet_names_before']]
+
+        result['step'] = '4_serialise'
+        import io
+        buf = io.BytesIO()
+        handler.workbook.save(buf)
+        result['bytes_written'] = buf.tell()
+
+        result['step'] = '5_upload'
+        buf.seek(0)
+        upload_result = handler.gdrive.upload_file(handler.file_id, buf)
+        result['upload_response'] = str(upload_result)
+
+        result['step'] = 'done'
+        handler.close()
+        return jsonify({'success': True, 'debug': result})
+
+    except Exception as e:
+        result['error'] = traceback.format_exc()
+        return jsonify({'success': False, 'debug': result, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# Entry point
+# ---------------------------------------------------------------------------
+
+if __name__ == '__main__':
+    load_deleted_workers()
+    print("=" * 60)
+    print("Machine Schedule Manager — Google Drive Edition")
+    print("=" * 60)
+    print(f"Mode    : {'File ID' if USE_FILE_ID else 'Filename'}")
+    print(f"Target  : {GOOGLE_DRIVE_FILE_ID if USE_FILE_ID else GOOGLE_DRIVE_FILENAME}")
+    print()
+    print("Testing Google Drive connection…")
+    try:
+        get_excel_handler()
+        print("✓ Google Drive connection successful")
+    except FileNotFoundError as e:
+        print(f"✗ File not found: {e}")
+        print("  Run: python create_valid_template.py")
+        raise SystemExit(1)
+    except Exception as e:
+        print(f"✗ Connection error: {e}")
+        print("  Check credentials.json / token.pickle, then run: python test_gdrive_connection.py")
+        raise SystemExit(1)
+
+    print(f"\nServer starting at http://{HOST}:{PORT}")
+    print("=" * 60)
+    app.run(debug=DEBUG, host=HOST, port=PORT)

@@ -1,0 +1,106 @@
+File ID: 1_FTaXHxBMc3FlPZjznWhoaoislj9zUiC
+Sheets: ['Main', '01-05-26']
+
+Machines:
+  Row 1: 
+  Row 2: Mill Floor - AC1 - Day
+  Row 3: Mill Floor - AC1 - Arvo
+  Row 4: Mill Floor - RS1 - Day
+  Row 5: Mill Floor - RS1 - Arvo
+  Row 6: Mill Floor - RS2
+  Row 7: Mill Floor -SM1
+  Row 8: Recycle Floor - AC2
+  Row 10: Build Floor - PM1 - Day
+  Row 11: Build Floor - PM1 - Arvo
+  Row 12: Build Floor - PM2 - Day
+  Row 13: Build Floor - PM2 - Arvo
+  Row 14: Build Floor - PM3 - Day
+  Row 15: Build Floor - PM3 - Arvo
+  Row 16: Build Floor - HB1 - Day
+  Row 17: Build Floor - HB1 - Arvo
+  Row 18: Build Floor - HB2
+  Row 19: Build Floor - HB3
+  Row 20: Build Floor - BP1 - Day
+  Row 21: Build Floor - BP1 - Arvo
+  Row 22: Recycled Floor - CB
+  Row 24: Recycled Floor - RT 1 - Day
+  Row 25: Recycled Floor - RT 1 - Arvo
+  Row 26: Recycled Floor - RT 2
+  Row 27: Recycled Floor - RT 3
+  Row 28: Recycled Floor - DT
+  Row 29: Recycled Floor - BS1
+  Row 30: Recycled Floor - BS2
+  Row 31: Recycled Floor - BS3
+  Row 32: Recycled Floor - BS4
+  Row 33: Recycled Floor - Other
+  Row 34: * Stenciling
+  Row 35: * Other
+  Row 36: Production  Notes
+  Row 37: Leave
+  Row 38: Brett
+  Row 39: Yamoussa
+  Row 40: Jomah
+  Row 41: Michael
+  Row 42: Shannon
+  Row 43: Sami
+  Row 44: Ademas
+  Row 45: Jordan
+  Row 46: Jesse
+  Row 47: Mathues
+
+Workers:
+  Column B: 06:00:00
+  Column C: 06:15:00
+  Column D: 06:30:00
+  Column E: 06:45:00
+  Column F: 07:00:00
+  Column G: 07:15:00
+  Column H: 07:30:00
+  Column I: 07:45:00
+  Column J: 08:00:00
+  Column K: 08:15:00
+  Column L: 08:30:00
+  Column M: 08:45:00
+  Column N: 09:00:00
+  Column O: 09:15:00
+  Column P: 09:30:00
+  Column Q: 09:45:00
+  Column R: 10:00:00
+  Column S: 10:15:00
+  Column T: 10:30:00
+  Column U: 10:45:00
+  Column V: 11:00:00
+  Column W: 11:15:00
+  Column X: 11:30:00
+  Column Y: 11:45:00
+  Column Z: 12:00:00
+  Column AA: 12:15:00
+  Column AB: 12:30:00
+  Column AC: 12:45:00
+  Column AD: 13:00:00
+  Column AE: 13:15:00
+  Column AF: 13:30:00
+  Column AG: 13:45:00
+  Column AH: 14:00:00
+  Column AI: 14:15:00
+  Column AJ: 14:30:00
+  Column AK: Min Staff Req
+  Column AL: Allocated Staff
+  Column AM: Main Roles
+  Column AO: Mathues
+  Column AP: Jesse
+  Column AQ: Sami
+  Column AR: Michael
+  Column AS: Jordan
+  Column AT: Ademas
+  Column AU: Brett
+  Column AV: Yamoussa
+  Column AW: Jomah
+  Column AX: Shannon
+
+Ranges detected:
+MACHINE_RANGES = [
+    (1, 8),
+    (10, 22),
+    (24, 47),
+]

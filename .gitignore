@@ -1,0 +1,45 @@
+# ── Google credentials (NEVER commit these) ──────────────────
+credentials.json
+web_credentials.json
+drive_credentials.json
+token.pickle
+
+# ── Runtime state ─────────────────────────────────────────────
+deleted_workers.json
+
+# ── Local environment variables ───────────────────────────────
+.env
+.env.local
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+*.egg
+.eggs/
+
+# ── Virtual environments ───────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── IDEs ──────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.iml
+*.suo
+*.user
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
