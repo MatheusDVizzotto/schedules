@@ -1,3 +1,4 @@
+/* Born Again Pallets — Brand: Forest Green #2d5a27 + Timber Brown #8B4513 */
 /* ═══════════════════════════════════════════════════════════════
    style.css — Machine Schedule Manager
    Responsive (mobile/tablet/desktop) + Dark mode
@@ -5,7 +6,7 @@
 
 /* ── CSS variables (light mode defaults) ─────────────────────── */
 :root {
-    --bg:           #f5f5f5;
+    --bg:           #f4f7f3;
     --surface:      #ffffff;
     --surface2:     #f8f9fa;
     --border:       #dee2e6;
@@ -13,13 +14,13 @@
     --text-muted:   #6c757d;
     --card-shadow:  0 2px 6px rgba(0,0,0,0.08);
     --card-hover:   0 4px 14px rgba(0,0,0,0.13);
-    --header-bg:    #e9ecef;
-    --worker-bar:   #0d6efd;
+    --header-bg:    #edf2ec;
+    --worker-bar:   #2d5a27;
     --input-bg:     #ffffff;
     --input-border: #ced4da;
     --input-text:   #212529;
     --scrollbar:    #adb5bd;
-    --filter-hover: #f0f2f5;
+    --filter-hover: #ebf2ea;
     --table-stripe: #f8f9fa;
 }
 
@@ -34,7 +35,7 @@
     --card-shadow:  0 2px 8px rgba(0,0,0,0.5);
     --card-hover:   0 4px 18px rgba(0,0,0,0.7);
     --header-bg:    #2c2c2c;
-    --worker-bar:   #4d9aff;
+    --worker-bar:   #5a9e52;
     --input-bg:     #2a2a2a;
     --input-border: #4a4a4a;
     --input-text:   #e8e8e8;
@@ -56,7 +57,7 @@ body {
 
 /* ── Navbar dark mode ─────────────────────────────────────────── */
 [data-theme="dark"] .navbar.bg-primary {
-    background-color: #1a3a6e !important;
+    background-color: #1a3516 !important;
 }
 
 /* ── Dark mode toggle button ──────────────────────────────────── */
@@ -226,11 +227,11 @@ input[type="time"] { font-size: 0.95rem; }
     color: #eee;
 }
 [data-theme="dark"] .btn-outline-primary {
-    border-color: #4d9aff;
-    color: #4d9aff;
+    border-color: #5a9e52;
+    color: #5a9e52;
 }
 [data-theme="dark"] .btn-outline-primary:hover {
-    background-color: #1a3a6e;
+    background-color: #1a3516;
     color: #fff;
 }
 [data-theme="dark"] .btn-light {

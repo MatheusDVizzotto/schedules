@@ -3,24 +3,27 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Worker Management</title>
+    <title>Worker Management — Born Again Pallets</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+    <link rel="icon" href="https://www.bornagainpallets.com/favicon.ico" type="image/x-icon">
     <script>
         (function(){
             var t = localStorage.getItem('theme') || 'light';
             document.documentElement.setAttribute('data-theme', t);
         })();
     </script>
+    <link rel="icon" href="https://www.bornagainpallets.com/favicon.ico" type="image/x-icon">
 </head>
 <body>
-    <nav class="navbar navbar-dark bg-primary">
+    <nav class="navbar navbar-dark" style="background-color: #2d5a27 !important;">
         <div class="container-fluid">
-            <span class="navbar-brand mb-0 h1">
-                <i class="fas fa-users-cog"></i>
-                <span class="d-none d-sm-inline"> Worker Management</span>
-                <span class="d-inline d-sm-none"> Workers</span>
+            <span class="navbar-brand mb-0 h1" style="font-family: Georgia, serif;">
+                <i class="fas fa-recycle me-1" style="color:#a8d5a2;"></i>
+                <span class="d-none d-sm-inline">Born Again Pallets</span>
+                <span class="d-inline d-sm-none">BAP</span>
+                <small class="d-none d-md-inline fw-normal opacity-75" style="font-size:0.6em;"> — Worker Management</small>
             </span>
             <div class="d-flex align-items-center gap-2 flex-wrap">
                                 <a href="/dashboard" class="btn btn-light btn-sm">
