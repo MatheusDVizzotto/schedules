@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Daily Dashboard</title>
+    <title>Daily Schedule Dashboard</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -11,7 +11,6 @@
         .worker-card {
             border-radius: 12px;
             transition: box-shadow 0.2s, transform 0.15s;
-            cursor: default;
         }
         .worker-card:hover {
             transform: translateY(-2px);
@@ -30,12 +29,13 @@
             color: #fff;
         }
         .time-badge {
-            font-size: 1rem;
+            font-size: 0.95rem;
             font-weight: 700;
             letter-spacing: 0.03em;
+            white-space: nowrap;
         }
         .machine-label {
-            font-size: 0.82rem;
+            font-size: 0.8rem;
             color: var(--text-muted);
         }
         .shift-section-title {
@@ -46,7 +46,7 @@
             color: var(--text-muted);
             padding: 4px 0 6px;
             border-bottom: 1px solid var(--border);
-            margin-bottom: 12px;
+            margin-bottom: 14px;
         }
         .notes-text {
             font-size: 0.78rem;
@@ -54,7 +54,7 @@
             font-style: italic;
         }
         #dateDisplay {
-            font-size: 1.1rem;
+            font-size: 1.05rem;
             font-weight: 600;
         }
         .no-schedule {
@@ -62,9 +62,9 @@
             padding: 60px 20px;
             color: var(--text-muted);
         }
-        .no-schedule i { font-size: 3rem; opacity: 0.3; margin-bottom: 16px; }
+        .no-schedule i { font-size: 3rem; opacity: 0.3; margin-bottom: 16px; display: block; }
 
-        /* Avatar colours cycling */
+        /* Avatar colours */
         .av-0 { background: #3b82f6; }
         .av-1 { background: #10b981; }
         .av-2 { background: #f59e0b; }
@@ -76,7 +76,7 @@
 
         @media (max-width: 575px) {
             .worker-avatar { width: 42px; height: 42px; font-size: 1rem; }
-            .time-badge { font-size: 0.9rem; }
+            .time-badge { font-size: 0.82rem; }
         }
     </style>
     <script>
@@ -87,57 +87,33 @@
     </script>
 </head>
 <body>
+
+    <!-- Minimal header — branding + dark mode only, no nav links -->
     <nav class="navbar navbar-dark bg-primary">
         <div class="container-fluid">
             <span class="navbar-brand mb-0 h1">
-                <i class="fas fa-th-large"></i>
-                <span class="d-none d-sm-inline"> Daily Dashboard</span>
-                <span class="d-inline d-sm-none"> Dashboard</span>
+                <i class="fas fa-industry me-2"></i>
+                <span class="d-none d-sm-inline">Born Again Pallets — Daily Schedule</span>
+                <span class="d-inline d-sm-none">Daily Schedule</span>
             </span>
-            <div class="d-flex align-items-center gap-2 flex-wrap">
-                <a href="/" class="btn btn-light btn-sm">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span class="d-none d-md-inline"> Schedule</span>
-                </a>
-                <a href="/workers" class="btn btn-light btn-sm">
-                    <i class="fas fa-user-edit"></i>
-                    <span class="d-none d-md-inline"> Workers</span>
-                </a>
-                <a href="/admin" class="btn btn-light btn-sm">
-                    <i class="fas fa-users-cog"></i>
-                    <span class="d-none d-md-inline"> Manage</span>
-                </a>
-                <button id="darkModeToggle" aria-label="Toggle dark mode">
-                    <i class="fas fa-moon"></i>
-                    <span class="d-none d-sm-inline">Dark Mode</span>
-                </button>
-                <div class="d-flex align-items-center gap-2 ms-1">
-                    {% if session.user_picture %}
-                    <img src="{{ session.user_picture }}" alt="avatar"
-                         style="width:30px;height:30px;border-radius:50%;border:2px solid rgba(255,255,255,0.4);">
-                    {% endif %}
-                    <span class="text-white d-none d-lg-inline" style="font-size:0.82rem;opacity:0.85;">
-                        {{ session.user_name or session.user_email }}
-                    </span>
-                    <a href="{{ url_for('auth.logout') }}" class="btn btn-sm btn-outline-light" style="font-size:0.78rem;padding:3px 8px;">
-                        <i class="fas fa-sign-out-alt"></i>
-                    </a>
-                </div>
-            </div>
+            <button id="darkModeToggle" aria-label="Toggle dark mode">
+                <i class="fas fa-moon"></i>
+                <span class="d-none d-sm-inline">Dark Mode</span>
+            </button>
         </div>
     </nav>
 
     <div class="container-fluid mt-3 mt-md-4">
 
-        <!-- Date selector row -->
-        <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+        <!-- Date navigation -->
+        <div class="d-flex flex-wrap align-items-center gap-2 mb-4">
             <button class="btn btn-outline-secondary btn-sm" id="prevDay" title="Previous day">
                 <i class="fas fa-chevron-left"></i>
             </button>
             <div class="d-flex align-items-center gap-2">
                 <span id="dateDisplay">—</span>
                 <input type="date" id="dashboardDate" class="form-control form-control-sm"
-                       style="width:auto;" title="Pick a date">
+                       style="width: auto;" title="Pick a date">
             </div>
             <button class="btn btn-outline-secondary btn-sm" id="nextDay" title="Next day">
                 <i class="fas fa-chevron-right"></i>
@@ -150,7 +126,7 @@
             </button>
         </div>
 
-        <!-- Dashboard content -->
+        <!-- Dashboard cards -->
         <div id="dashboardContent">
             <div class="text-center py-5 text-muted">
                 <div class="spinner-border text-primary mb-3" role="status"></div>
