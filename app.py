@@ -75,6 +75,11 @@ def get_excel_handler():
 def index():
     return render_template('index.html')
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    return render_template('dashboard.html')
+
 @app.route('/admin')
 @login_required
 def admin():
