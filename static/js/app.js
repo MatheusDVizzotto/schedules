@@ -323,8 +323,8 @@ function restoreAssignments() {
         const tfEl    = document.querySelector('.time-finish[data-machine-row="'   + row + '"]');
         const notesEl = document.querySelector('.machine-notes[data-machine-row="' + row + '"]');
 
-        if (tsEl)    tsEl.value    = saved.timeStart;
-        if (tfEl)    tfEl.value    = saved.timeFinish;
+        if (tsEl)    tsEl.value    = saved.timeStart  || defaultStart(mach.name);
+        if (tfEl)    tfEl.value    = saved.timeFinish || defaultFinish(mach.name);
         if (notesEl) notesEl.value = saved.notes;
 
         saved.workers.forEach(function(workerCol) {
@@ -345,6 +345,16 @@ function restoreAssignments() {
     });
 
     updateAssignmentBadges();
+}
+
+// ── Default times ────────────────────────────────────────────────────────────
+
+function defaultStart(machineName) {
+    return machineName.endsWith(' - Arvo') ? '14:30' : '07:00';
+}
+
+function defaultFinish(machineName) {
+    return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
 // ── Step 2: Schedule assignment cards ────────────────────────────────────────
@@ -375,11 +385,11 @@ function renderScheduleInterface() {
                     '<h6 class="text-muted mb-3">Time & Notes</h6>' +
                     '<div class="mb-2">' +
                       '<label class="form-label small">Start Time</label>' +
-                      '<input type="time" class="form-control time-start" data-machine-row="' + machine.row + '">' +
+                      '<input type="time" class="form-control time-start" data-machine-row="' + machine.row + '" value="' + defaultStart(machine.name) + '">' +
                     '</div>' +
                     '<div class="mb-2">' +
                       '<label class="form-label small">Finish Time</label>' +
-                      '<input type="time" class="form-control time-finish" data-machine-row="' + machine.row + '">' +
+                      '<input type="time" class="form-control time-finish" data-machine-row="' + machine.row + '" value="' + defaultFinish(machine.name) + '">' +
                     '</div>' +
                     '<div class="mb-2">' +
                       '<label class="form-label small">Notes</label>' +
