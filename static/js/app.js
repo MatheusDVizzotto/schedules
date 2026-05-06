@@ -56,17 +56,33 @@ var MACHINE_BLOCKS = [
     {
         label:  'Mill Floor — Day',
         color:  '#dbeafe',   // light blue
-        match:  function(name) { return name.startsWith('Mill Floor - ') && name.endsWith(' - Day'); }
+        // Matches "Mill Floor - * - Day" OR any "Mill Floor - *" without a shift suffix
+        match:  function(name) {
+            if (!name.startsWith('Mill Floor - ')) return false;
+            if (name.endsWith(' - Day')) return true;
+            // Fallback: no shift suffix (neither Day nor Arvo)
+            return !name.endsWith(' - Arvo');
+        }
     },
     {
         label:  'Build Floor — Day',
         color:  '#dcfce7',   // light green
-        match:  function(name) { return name.startsWith('Build Floor - ') && name.endsWith(' - Day'); }
+        match:  function(name) {
+            if (!name.startsWith('Build Floor - ') && !name.startsWith('Build Floor')) return false;
+            if (name.endsWith(' - Day')) return true;
+            return !name.endsWith(' - Arvo');
+        }
     },
     {
         label:  'Recycled Floor — Day',
         color:  '#fef9c3',   // light yellow
-        match:  function(name) { return name.startsWith('Recycled Floor - ') && name.endsWith(' - Day'); }
+        // Also catches "Recycle Floor -" (without the d)
+        match:  function(name) {
+            var isRecycled = name.startsWith('Recycled Floor - ') || name.startsWith('Recycle Floor -');
+            if (!isRecycled) return false;
+            if (name.endsWith(' - Day')) return true;
+            return !name.endsWith(' - Arvo');
+        }
     },
     {
         label:  'Mill Floor — Arvo',
@@ -76,12 +92,16 @@ var MACHINE_BLOCKS = [
     {
         label:  'Build Floor — Arvo',
         color:  '#bbf7d0',   // medium green
-        match:  function(name) { return name.startsWith('Build Floor - ') && name.endsWith(' - Arvo'); }
+        match:  function(name) {
+            return (name.startsWith('Build Floor - ') || name.startsWith('Build Floor')) && name.endsWith(' - Arvo');
+        }
     },
     {
         label:  'Recycled Floor — Arvo',
         color:  '#fde68a',   // medium yellow
-        match:  function(name) { return name.startsWith('Recycled Floor - ') && name.endsWith(' - Arvo'); }
+        match:  function(name) {
+            return (name.startsWith('Recycled Floor - ') || name.startsWith('Recycle Floor -')) && name.endsWith(' - Arvo');
+        }
     },
 ];
 
