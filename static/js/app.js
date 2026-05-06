@@ -51,6 +51,40 @@ async function loadData() {
 
 // ── Step 1: Machine filter ────────────────────────────────────────────────────
 
+// Named blocks: each defines a label and a filter function
+var MACHINE_BLOCKS = [
+    {
+        label:  'Mill Floor — Day',
+        color:  '#dbeafe',   // light blue
+        match:  function(name) { return name.startsWith('Mill Floor - ') && name.endsWith(' - Day'); }
+    },
+    {
+        label:  'Build Floor — Day',
+        color:  '#dcfce7',   // light green
+        match:  function(name) { return name.startsWith('Build Floor - ') && name.endsWith(' - Day'); }
+    },
+    {
+        label:  'Recycled Floor — Day',
+        color:  '#fef9c3',   // light yellow
+        match:  function(name) { return name.startsWith('Recycled Floor - ') && name.endsWith(' - Day'); }
+    },
+    {
+        label:  'Mill Floor — Arvo',
+        color:  '#bfdbfe',   // medium blue
+        match:  function(name) { return name.startsWith('Mill Floor - ') && name.endsWith(' - Arvo'); }
+    },
+    {
+        label:  'Build Floor — Arvo',
+        color:  '#bbf7d0',   // medium green
+        match:  function(name) { return name.startsWith('Build Floor - ') && name.endsWith(' - Arvo'); }
+    },
+    {
+        label:  'Recycled Floor — Arvo',
+        color:  '#fde68a',   // medium yellow
+        match:  function(name) { return name.startsWith('Recycled Floor - ') && name.endsWith(' - Arvo'); }
+    },
+];
+
 function renderMachineFilter() {
     const container = document.getElementById('machineFilterContainer');
     if (!machines.length) {
@@ -58,16 +92,77 @@ function renderMachineFilter() {
         return;
     }
 
-    // Group machines by block (based on MACHINE_RANGES order)
-    // We detect block breaks by gaps in the row numbers
-    const blocks = groupMachinesIntoBlocks(machines);
+    // Assign each machine to its block
+    var blockMachines = MACHINE_BLOCKS.map(function() { return []; });
+    var unmatched     = [];
 
-    let html = '<div class="row g-3">';
-    blocks.forEach(function(block, blockIdx) {
-        html += '<div class="col-md-4">';
+    machines.forEach(function(machine) {
+        var placed = false;
+        MACHINE_BLOCKS.forEach(function(block, idx) {
+            if (!placed && block.match(machine.name)) {
+                blockMachines[idx].push(machine);
+                placed = true;
+            }
+        });
+        if (!placed) unmatched.push(machine);
+    });
+
+    // Build a short label by stripping the prefix/suffix already shown in the block title
+    function shortName(name, block) {
+        // Remove leading "Mill Floor - ", "Build Floor - " etc. and trailing " - Day"/" - Arvo"
+        var s = name;
+        ['Mill Floor - ', 'Build Floor - ', 'Recycled Floor - '].forEach(function(pre) {
+            if (s.startsWith(pre)) s = s.slice(pre.length);
+        });
+        [' - Day', ' - Arvo'].forEach(function(suf) {
+            if (s.endsWith(suf)) s = s.slice(0, s.length - suf.length);
+        });
+        return s || name;
+    }
+
+    var html = '<div class="row g-3">';
+
+    MACHINE_BLOCKS.forEach(function(block, idx) {
+        var list = blockMachines[idx];
+        // Always show all 6 blocks, even if empty
+        html += '<div class="col-md-4 col-sm-6">';
+        html += '<div class="filter-block" style="border-top: 3px solid ' + block.color.replace(/f/g, "c") + ';">';
+        html += '<div class="filter-block-title" style="background:' + block.color + ';margin:-12px -12px 10px;padding:8px 12px;border-radius:6px 6px 0 0;">' + escapeHtml(block.label) + '</div>';
+
+        if (list.length === 0) {
+            html += '<div class="text-muted small ps-1">No machines</div>';
+        } else {
+            // Block-level select all / clear
+            html += '<div class="d-flex gap-2 mb-2">' +
+                      '<button class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.72rem;" onclick="selectBlock(' + idx + ')">All</button>' +
+                      '<button class="btn btn-xs btn-outline-secondary py-0 px-2" style="font-size:0.72rem;" onclick="clearBlock(' + idx + ')">None</button>' +
+                    '</div>';
+
+            list.forEach(function(machine) {
+                html +=
+                    '<div class="filter-item">' +
+                      '<div class="form-check">' +
+                        '<input class="form-check-input machine-filter-cb" type="checkbox"' +
+                               ' id="filter-' + machine.row + '"' +
+                               ' data-machine-row="' + machine.row + '"' +
+                               ' data-block-idx="' + idx + '">' +
+                        '<label class="form-check-label" for="filter-' + machine.row + '">' +
+                          escapeHtml(shortName(machine.name, block)) +
+                        '</label>' +
+                      '</div>' +
+                    '</div>';
+            });
+        }
+
+        html += '</div></div>';
+    });
+
+    // Unmatched machines (don't fit any block) — show in an extra block
+    if (unmatched.length) {
+        html += '<div class="col-12">';
         html += '<div class="filter-block">';
-        html += '<div class="filter-block-title">Block ' + (blockIdx + 1) + '</div>';
-        block.forEach(function(machine) {
+        html += '<div class="filter-block-title">Other Machines</div>';
+        unmatched.forEach(function(machine) {
             html +=
                 '<div class="filter-item">' +
                   '<div class="form-check">' +
@@ -81,35 +176,28 @@ function renderMachineFilter() {
                 '</div>';
         });
         html += '</div></div>';
-    });
-    html += '</div>';
+    }
 
+    html += '</div>';
     container.innerHTML = html;
 
-    // Listen for changes to update the proceed button
     container.querySelectorAll('.machine-filter-cb').forEach(function(cb) {
         cb.addEventListener('change', updateProceedButton);
     });
 }
 
-function groupMachinesIntoBlocks(machineList) {
-    // Split into blocks wherever there's a gap > 1 between consecutive row numbers
-    const blocks = [];
-    let current  = [];
-    for (let i = 0; i < machineList.length; i++) {
-        if (i === 0) {
-            current.push(machineList[i]);
-        } else {
-            const gap = machineList[i].row - machineList[i - 1].row;
-            if (gap > 1) {
-                blocks.push(current);
-                current = [];
-            }
-            current.push(machineList[i]);
-        }
-    }
-    if (current.length) blocks.push(current);
-    return blocks;
+function selectBlock(idx) {
+    document.querySelectorAll('.machine-filter-cb[data-block-idx="' + idx + '"]').forEach(function(cb) {
+        cb.checked = true;
+    });
+    updateProceedButton();
+}
+
+function clearBlock(idx) {
+    document.querySelectorAll('.machine-filter-cb[data-block-idx="' + idx + '"]').forEach(function(cb) {
+        cb.checked = false;
+    });
+    updateProceedButton();
 }
 
 function updateProceedButton() {
