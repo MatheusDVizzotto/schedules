@@ -89,6 +89,11 @@ def admin():
 def workers_page():
     return render_template('workers.html')
 
+@app.route('/racks')
+@login_required
+def racks_page():
+    return render_template('racks.html')
+
 
 # ---------------------------------------------------------------------------
 # API – combined loader (what the frontend actually calls on page load)
@@ -373,6 +378,41 @@ def get_schedule(date_str):
         handler.close()
         return jsonify({'success': True, 'schedule': schedule})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – racks management
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks', methods=['GET'])
+@login_required
+def get_racks():
+    try:
+        handler = get_excel_handler()
+        handler.load()
+        racks = handler.get_racks()
+        handler.close()
+        return jsonify({'success': True, 'racks': racks})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/save', methods=['POST'])
+@login_required
+def save_racks():
+    try:
+        data = request.get_json()
+        if data is None or 'racks' not in data:
+            return jsonify({'success': False, 'error': 'racks payload is required'}), 400
+        handler = get_excel_handler()
+        handler.load()
+        handler.save_racks(data['racks'])
+        handler.close()
+        return jsonify({'success': True, 'message': 'Racks saved successfully'})
+    except Exception as e:
+        import traceback
+        print(f"Error in save_racks:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

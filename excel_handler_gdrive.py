@@ -703,6 +703,67 @@ class ExcelHandlerGDrive:
         return schedule
 
     # ------------------------------------------------------------------
+    # Racks management
+    # ------------------------------------------------------------------
+
+    RACKS_SHEET = 'racks_management'
+    RACKS_HEADERS = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity']
+
+    def _get_or_create_racks_sheet(self):
+        """Return the racks_management sheet, creating it with headers if absent."""
+        if self.RACKS_SHEET not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(self.RACKS_SHEET)
+            header_fill = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
+            bold = openpyxl.styles.Font(bold=True)
+            for col, title in enumerate(self.RACKS_HEADERS, start=1):
+                cell = ws.cell(row=1, column=col, value=title)
+                cell.fill = header_fill
+                cell.font = bold
+                cell.alignment = self.center_align
+                cell.border = self.thin_border
+            ws.column_dimensions['A'].width = 14
+            ws.column_dimensions['B'].width = 18
+            ws.column_dimensions['C'].width = 14
+            ws.column_dimensions['D'].width = 14
+        return self.workbook[self.RACKS_SHEET]
+
+    def get_racks(self) -> list[dict]:
+        """Return all rack rows from the racks_management sheet."""
+        ws = self._get_or_create_racks_sheet()
+        racks = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if all(v is None for v in row):
+                continue
+            racks.append({
+                'bay_code':        str(row[0] or '').strip(),
+                'size_preferable': str(row[1] or '').strip(),
+                'actual_size':     str(row[2] or '').strip(),
+                'quantity':        str(row[3] or '').strip(),
+            })
+        return racks
+
+    def save_racks(self, racks: list[dict]):
+        """Overwrite the racks_management sheet with the provided data and upload."""
+        ws = self._get_or_create_racks_sheet()
+        # Clear all data rows
+        for row in ws.iter_rows(min_row=2, max_row=ws.max_row):
+            for cell in row:
+                cell.value = None
+        # Write new data
+        for r_idx, rack in enumerate(racks, start=2):
+            values = [
+                rack.get('bay_code', ''),
+                rack.get('size_preferable', ''),
+                rack.get('actual_size', ''),
+                rack.get('quantity', ''),
+            ]
+            for c_idx, val in enumerate(values, start=1):
+                cell = ws.cell(row=r_idx, column=c_idx, value=val)
+                cell.border = self.thin_border
+                cell.alignment = self.center_align
+        self.save()
+
+    # ------------------------------------------------------------------
     # Time utilities (kept for potential future use)
     # ------------------------------------------------------------------
 
