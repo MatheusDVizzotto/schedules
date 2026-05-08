@@ -157,6 +157,20 @@ class GoogleDriveHandler:
             print(f"Error searching '{filename}': {e}")
             return None
 
+    def create_file(self, filename: str, file_buffer: io.BytesIO,
+                    mime_type: str = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') -> str:
+        """Upload a new file to Drive and return its file_id."""
+        try:
+            file_buffer.seek(0)
+            metadata = {'name': filename}
+            media    = MediaIoBaseUpload(file_buffer, mimetype=mime_type, resumable=True)
+            result   = self.service.files().create(
+                body=metadata, media_body=media, fields='id'
+            ).execute()
+            return result['id']
+        except HttpError as e:
+            raise RuntimeError(f"Drive create error for '{filename}': {e}") from e
+
     def get_file_metadata(self, file_id: str) -> dict | None:
         try:
             return self.service.files().get(

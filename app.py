@@ -389,7 +389,8 @@ def get_schedule(date_str):
 @login_required
 def get_racks():
     try:
-        handler = get_excel_handler()
+        from racks_handler import RacksHandler
+        handler = RacksHandler()
         handler.load()
         racks = handler.get_racks()
         handler.close()
@@ -405,7 +406,8 @@ def save_racks():
         data = request.get_json()
         if data is None or 'racks' not in data:
             return jsonify({'success': False, 'error': 'racks payload is required'}), 400
-        handler = get_excel_handler()
+        from racks_handler import RacksHandler
+        handler = RacksHandler()
         handler.load()
         handler.save_racks(data['racks'])
         handler.close()
