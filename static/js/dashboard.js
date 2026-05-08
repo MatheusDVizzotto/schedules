@@ -187,10 +187,7 @@ function renderMachineCard(m, workerColours) {
         workersHtml +=
             '<div class="d-flex align-items-center gap-2 mb-2">' +
               '<div class="worker-avatar ' + colClass + '">' + escapeHtml(initials) + '</div>' +
-              '<div>' +
-                '<div class="fw-semibold">' + escapeHtml(worker) + '</div>' +
-                (m.notes ? '<div class="notes-text">' + escapeHtml(m.notes) + '</div>' : '') +
-              '</div>' +
+              '<div class="fw-semibold">' + escapeHtml(worker) + '</div>' +
             '</div>';
     });
 
@@ -209,6 +206,7 @@ function renderMachineCard(m, workerColours) {
               '</div>' +
               '<hr class="my-2">' +
               workersHtml +
+              (m.notes ? '<div class="notes-text mt-2"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(m.notes) + '</div>' : '') +
             '</div>' +
           '</div>' +
         '</div>'
