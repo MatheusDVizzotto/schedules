@@ -392,9 +392,10 @@ def get_racks():
         from racks_handler import RacksHandler
         handler = RacksHandler()
         handler.load()
-        racks = handler.get_racks()
+        racks     = handler.get_racks()
+        locations = handler.get_locations()
         handler.close()
-        return jsonify({'success': True, 'racks': racks})
+        return jsonify({'success': True, 'racks': racks, 'locations': locations})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -415,6 +416,25 @@ def save_racks():
     except Exception as e:
         import traceback
         print(f"Error in save_racks:\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/locations/add', methods=['POST'])
+@login_required
+def add_rack_location():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        from racks_handler import RacksHandler
+        handler   = RacksHandler()
+        handler.load()
+        locations = handler.add_location(data['name'].strip())
+        handler.close()
+        return jsonify({'success': True, 'locations': locations})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

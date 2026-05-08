@@ -1,11 +1,12 @@
 """
 racks_handler.py — Manages the racks_management Google Drive file.
 
-Creates a new spreadsheet file called 'racks_management' in Google Drive
-if one does not already exist.  Subsequent loads download and re-upload
-that same file.
+Each sheet tab in the workbook represents a location.
+Bays are saved to the tab matching their selected location.
+A hidden '_placeholder_' sheet keeps the workbook valid while no locations exist.
 """
 import io
+from collections import defaultdict
 
 import openpyxl
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
@@ -46,47 +47,86 @@ class RacksHandler:
             self.workbook = None
 
     # ------------------------------------------------------------------
+    # Locations
+    # ------------------------------------------------------------------
+
+    def get_locations(self) -> list[str]:
+        """Return all location sheet names (excludes internal placeholder sheet)."""
+        return [s for s in self.workbook.sheetnames if not s.startswith('_')]
+
+    def add_location(self, name: str) -> list[str]:
+        """Create a new location tab with headers and save. Returns updated location list."""
+        name = name.strip()
+        if not name:
+            raise ValueError("Location name cannot be empty")
+        if name in self.workbook.sheetnames:
+            raise ValueError(f"Location '{name}' already exists")
+        self._create_location_sheet(name)
+        # Remove the placeholder once at least one real location exists
+        if '_placeholder_' in self.workbook.sheetnames:
+            del self.workbook['_placeholder_']
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_locations()
+
+    # ------------------------------------------------------------------
+    # Racks
+    # ------------------------------------------------------------------
 
     def get_racks(self) -> list[dict]:
-        ws    = self.workbook.active
+        """Return all racks across all location tabs, each with a 'location' field."""
         racks = []
-        for row in ws.iter_rows(min_row=2, values_only=True):
-            if all(v is None for v in row):
-                continue
-            racks.append({
-                'bay_code':        str(row[0] or '').strip(),
-                'size_preferable': str(row[1] or '').strip(),
-                'actual_size':     str(row[2] or '').strip(),
-                'quantity':        str(row[3] or '').strip(),
-            })
+        for loc in self.get_locations():
+            ws = self.workbook[loc]
+            for row in ws.iter_rows(min_row=2, values_only=True):
+                if all(v is None for v in row):
+                    continue
+                racks.append({
+                    'location':        loc,
+                    'bay_code':        str(row[0] or '').strip(),
+                    'size_preferable': str(row[1] or '').strip(),
+                    'actual_size':     str(row[2] or '').strip(),
+                    'quantity':        str(row[3] or '').strip(),
+                })
         return racks
 
     def save_racks(self, racks: list[dict]):
-        ws = self.workbook.active
-        # Clear existing data rows
-        if ws.max_row > 1:
-            ws.delete_rows(2, ws.max_row - 1)
-        # Write new rows
+        """Group racks by location and overwrite each location tab."""
+        by_location = defaultdict(list)
         for rack in racks:
-            values = [
-                rack.get('bay_code', ''),
-                rack.get('size_preferable', ''),
-                rack.get('actual_size', ''),
-                rack.get('quantity', ''),
-            ]
-            row_idx = ws.max_row + 1
-            for col_idx, val in enumerate(values, start=1):
-                cell             = ws.cell(row=row_idx, column=col_idx, value=val or None)
-                cell.border      = THIN_BORDER
-                cell.alignment   = CENTER_ALIGN
+            loc = rack.get('location', '').strip()
+            if loc:
+                by_location[loc].append(rack)
+
+        # Clear all location sheets
+        for loc in self.get_locations():
+            ws = self.workbook[loc]
+            if ws.max_row > 1:
+                ws.delete_rows(2, ws.max_row - 1)
+
+        # Write rows to their sheets
+        for loc, loc_racks in by_location.items():
+            if loc not in self.workbook.sheetnames:
+                continue
+            ws = self.workbook[loc]
+            for rack in loc_racks:
+                row_idx = ws.max_row + 1
+                values  = [
+                    rack.get('bay_code', ''),
+                    rack.get('size_preferable', ''),
+                    rack.get('actual_size', ''),
+                    rack.get('quantity', ''),
+                ]
+                for col_idx, val in enumerate(values, start=1):
+                    cell           = ws.cell(row=row_idx, column=col_idx, value=val or None)
+                    cell.border    = THIN_BORDER
+                    cell.alignment = CENTER_ALIGN
+
         self.gdrive.upload_file(self.file_id, self._serialise())
 
     # ------------------------------------------------------------------
 
-    def _new_workbook(self) -> openpyxl.Workbook:
-        wb = openpyxl.Workbook()
-        ws = wb.active
-        ws.title = 'Racks'
+    def _create_location_sheet(self, name: str):
+        ws = self.workbook.create_sheet(name)
         for col, title in enumerate(HEADERS, start=1):
             cell           = ws.cell(row=1, column=col, value=title)
             cell.fill      = HEADER_FILL
@@ -97,6 +137,12 @@ class RacksHandler:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 14
         ws.column_dimensions['D'].width = 14
+        return ws
+
+    def _new_workbook(self) -> openpyxl.Workbook:
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.title = '_placeholder_'  # hidden from UI; removed when first location is added
         return wb
 
     def _serialise(self) -> io.BytesIO:
