@@ -173,7 +173,7 @@ function buildCard(item) {
           '<div class="card h-100 shadow-sm">' +
             '<div class="card-header py-2 d-flex justify-content-between align-items-start">' +
               '<div>' +
-                '<span class="fw-semibold">' + escHtml(item.size) + '</span>' +
+                '<span class="fw-semibold fs-5">' + escHtml(item.size) + '</span>' +
                 '<span class="badge ms-2" style="background:#2d5a27;">' + escHtml(item.item_type) + '</span>' +
               '</div>' +
               '<span class="text-muted small ms-2 text-end">' + escHtml(item.dimensions) + '</span>' +
@@ -219,12 +219,13 @@ function buildDimensionBreakdown(size, itemType) {
     }
 
     var html = '<hr class="my-2"><div class="small fw-semibold text-muted mb-2">Breakdown by Dimension</div>';
+    html += '<div class="row g-2">';
     dims.forEach(function (dim) {
         var bays  = byDim[dim];
         var total = bays.reduce(function (sum, b) { return sum + (parseFloat(b.quantity) || 0); }, 0);
-        html += '<div class="mb-2">' +
+        html += '<div class="col-4">' +
             '<div class="small fw-semibold mb-1">' + escHtml(dim) +
-            ' <span class="text-muted fw-normal">(' + total.toFixed(2) + ' box)</span></div>' +
+            '<br><span class="text-muted fw-normal">' + total.toFixed(2) + ' box</span></div>' +
             '<div class="d-flex flex-wrap gap-1">';
         bays.forEach(function (b) {
             var tip = escHtml((b.location || '') + (b.bay_code ? ' · ' + b.bay_code : '') + ' — ' + (b.quantity || '0') + ' box');
@@ -233,6 +234,7 @@ function buildDimensionBreakdown(size, itemType) {
         });
         html += '</div></div>';
     });
+    html += '</div>';
     return html;
 }
 
