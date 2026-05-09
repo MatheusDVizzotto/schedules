@@ -117,7 +117,7 @@ function renderDashboard() {
 
         html += '<h5 class="mt-4 mb-3 fw-semibold section-title">' +
             '<i class="fas fa-cube me-2" style="color:#2d5a27;"></i>' + escHtml(type) + '</h5>';
-        html += '<div class="row g-3">';
+        html += '<div class="d-flex flex-wrap gap-3 align-items-start">';
 
         byType[type].forEach(function (sel) {
             var item = allStock.find(function (s) {
@@ -169,8 +169,8 @@ function buildCard(item) {
     }
 
     var html =
-        '<div class="col-md-6 col-xl-4">' +
-          '<div class="card h-100 shadow-sm">' +
+        '<div style="flex:0 0 auto;">' +
+          '<div class="card shadow-sm" style="width:max-content;min-width:220px;">' +
             '<div class="card-header py-2 d-flex justify-content-between align-items-start">' +
               '<div>' +
                 '<span class="fw-semibold fs-5">' + escHtml(item.size) + '</span>' +
