@@ -13,7 +13,7 @@ import pickle
 import secrets
 
 TOKEN_PATH            = 'token.pickle'
-DRIVE_CREDENTIALS_PATH = 'drive_credentials.json'
+DRIVE_CREDENTIALS_PATH = 'credentials.json'
 WEB_CREDENTIALS_PATH  = 'web_credentials.json'
 
 print("\n" + "=" * 65)

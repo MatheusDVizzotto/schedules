@@ -28,7 +28,7 @@ from googleapiclient.http import MediaIoBaseDownload, MediaIoBaseUpload
 
 SCOPES           = ['https://www.googleapis.com/auth/drive']
 TOKEN_PATH       = 'token.pickle'
-CREDENTIALS_PATH = 'drive_credentials.json'  # Desktop app type — separate from web login credentials
+CREDENTIALS_PATH = 'credentials.json'
 AUTH_PORT        = 8080
 
 

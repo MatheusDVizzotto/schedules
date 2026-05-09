@@ -1,7 +1,6 @@
 # ── Google credentials (NEVER commit these) ──────────────────
 credentials.json
 web_credentials.json
-drive_credentials.json
 token.pickle
 token_web.pickle
 credentials2.json

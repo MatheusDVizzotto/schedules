@@ -14,6 +14,17 @@ let workerAssignments = {};
 // { machineRow: { timeStart, timeFinish, notes, workers: [workerCol, ...] } }
 let savedAssignments = {};
 
+function shortMachineName(name) {
+    var s = name;
+    ['Mill Floor - ', 'Mill Floor -', 'Build Floor - ', 'Recycled Floor - ', 'Recycle Floor - '].forEach(function(pre) {
+        if (s.startsWith(pre)) s = s.slice(pre.length);
+    });
+    [' - Day', ' - Arvo'].forEach(function(suf) {
+        if (s.endsWith(suf)) s = s.slice(0, s.length - suf.length);
+    });
+    return s || name;
+}
+
 // ── Startup ───────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -56,11 +67,9 @@ var MACHINE_BLOCKS = [
     {
         label:  'Mill Floor — Day',
         color:  '#dbeafe',   // light blue
-        // Matches "Mill Floor - * - Day" OR any "Mill Floor - *" without a shift suffix
         match:  function(name) {
-            if (!name.startsWith('Mill Floor - ')) return false;
+            if (!name.startsWith('Mill Floor -')) return false;
             if (name.endsWith(' - Day')) return true;
-            // Fallback: no shift suffix (neither Day nor Arvo)
             return !name.endsWith(' - Arvo');
         }
     },
@@ -87,7 +96,7 @@ var MACHINE_BLOCKS = [
     {
         label:  'Mill Floor — Arvo',
         color:  '#bfdbfe',   // medium blue
-        match:  function(name) { return name.startsWith('Mill Floor - ') && name.endsWith(' - Arvo'); }
+        match:  function(name) { return name.startsWith('Mill Floor -') && name.endsWith(' - Arvo'); }
     },
     {
         label:  'Build Floor — Arvo',
@@ -127,18 +136,7 @@ function renderMachineFilter() {
         if (!placed) unmatched.push(machine);
     });
 
-    // Build a short label by stripping the prefix/suffix already shown in the block title
-    function shortName(name, block) {
-        // Remove leading "Mill Floor - ", "Build Floor - " etc. and trailing " - Day"/" - Arvo"
-        var s = name;
-        ['Mill Floor - ', 'Build Floor - ', 'Recycled Floor - '].forEach(function(pre) {
-            if (s.startsWith(pre)) s = s.slice(pre.length);
-        });
-        [' - Day', ' - Arvo'].forEach(function(suf) {
-            if (s.endsWith(suf)) s = s.slice(0, s.length - suf.length);
-        });
-        return s || name;
-    }
+    function shortName(name) { return shortMachineName(name); }
 
     var html = '<div class="row g-3">';
 
@@ -373,7 +371,7 @@ function renderScheduleInterface() {
         card.innerHTML =
             '<div class="card">' +
               '<div class="card-header">' +
-                '<strong>' + escapeHtml(machine.name) + '</strong>' +
+                '<strong>' + escapeHtml(shortMachineName(machine.name)) + '</strong>' +
               '</div>' +
               '<div class="card-body">' +
                 '<div class="row">' +
