@@ -13,8 +13,10 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 from google_drive_handler import GoogleDriveHandler
 
-FILENAME = 'racks_management'
-HEADERS  = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Item Type', 'Item Subtype']
+FILENAME      = 'racks_management'
+HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Item Type', 'Dimensions']
+STOCK_SHEET   = '_stock_'
+STOCK_HEADERS = ['Size', 'Item Type', 'Dimensions', 'Min On Hand', 'Max On Hand']
 
 HEADER_FILL  = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
 THIN_SIDE    = Side(style='thin')
@@ -135,6 +137,74 @@ class RacksHandler:
                     cell.alignment = CENTER_ALIGN
 
         self.gdrive.upload_file(self.file_id, self._serialise())
+
+    # ------------------------------------------------------------------
+    # Stock
+    # ------------------------------------------------------------------
+
+    def get_stock(self) -> list[dict]:
+        """Return all stock items with computed qty_on_hand from bays."""
+        ws = self._ensure_stock_sheet()
+        racks = self.get_racks()
+        items = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if all(v is None for v in row):
+                continue
+            size       = str(row[0] or '').strip()
+            item_type  = str(row[1] or '').strip()
+            dimensions = str(row[2] or '').strip()
+            qty_on_hand = sum(
+                float(r['quantity']) for r in racks
+                if r['actual_size'] == size
+                and r['item_type']  == item_type
+                and r['item_subtype'] == dimensions
+                and r['quantity']
+            )
+            items.append({
+                'size':        size,
+                'item_type':   item_type,
+                'dimensions':  dimensions,
+                'qty_on_hand': qty_on_hand,
+                'min_on_hand': str(row[3] or '').strip(),
+                'max_on_hand': str(row[4] or '').strip(),
+            })
+        return items
+
+    def save_stock(self, items: list[dict]):
+        """Overwrite the stock sheet with the provided items."""
+        ws = self._ensure_stock_sheet()
+        if ws.max_row > 1:
+            ws.delete_rows(2, ws.max_row - 1)
+        for item in items:
+            row_idx = ws.max_row + 1
+            values  = [
+                item.get('size', ''),
+                item.get('item_type', ''),
+                item.get('dimensions', ''),
+                item.get('min_on_hand', ''),
+                item.get('max_on_hand', ''),
+            ]
+            for col_idx, val in enumerate(values, start=1):
+                cell           = ws.cell(row=row_idx, column=col_idx, value=val or None)
+                cell.border    = THIN_BORDER
+                cell.alignment = CENTER_ALIGN
+        self.gdrive.upload_file(self.file_id, self._serialise())
+
+    def _ensure_stock_sheet(self):
+        if STOCK_SHEET not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(STOCK_SHEET)
+            for col, title in enumerate(STOCK_HEADERS, start=1):
+                cell           = ws.cell(row=1, column=col, value=title)
+                cell.fill      = HEADER_FILL
+                cell.font      = Font(bold=True)
+                cell.alignment = CENTER_ALIGN
+                cell.border    = THIN_BORDER
+            ws.column_dimensions['A'].width = 16
+            ws.column_dimensions['B'].width = 14
+            ws.column_dimensions['C'].width = 18
+            ws.column_dimensions['D'].width = 14
+            ws.column_dimensions['E'].width = 14
+        return self.workbook[STOCK_SHEET]
 
     # ------------------------------------------------------------------
 

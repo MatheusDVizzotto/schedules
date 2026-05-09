@@ -47,6 +47,10 @@
                     <i class="fas fa-th-large"></i>
                     <span class="d-none d-md-inline"> Dashboard</span>
                 </a>
+                <a href="/racks/stock" class="btn btn-light btn-sm">
+                    <i class="fas fa-boxes"></i>
+                    <span class="d-none d-md-inline"> Stock</span>
+                </a>
                 <button id="darkModeToggle" aria-label="Toggle dark mode">
                     <i class="fas fa-moon"></i>
                     <span class="d-none d-sm-inline">Dark Mode</span>
@@ -120,7 +124,7 @@
                                 <th>Actual Size</th>
                                 <th style="width:160px;">Quantity</th>
                                 <th style="width:130px;">Item Type</th>
-                                <th style="width:180px;">Item Subtype</th>
+                                <th style="width:180px;">Dimensions</th>
                                 <th style="width:50px;"></th>
                             </tr>
                         </thead>
@@ -141,6 +145,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/item_options.js') }}"></script>
     <script src="{{ url_for('static', filename='js/racks.js') }}"></script>
 </body>
 </html>

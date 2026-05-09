@@ -95,6 +95,12 @@ def racks_page():
     return render_template('racks.html')
 
 
+@app.route('/racks/stock')
+@login_required
+def stock_page():
+    return render_template('stock.html')
+
+
 # ---------------------------------------------------------------------------
 # API – combined loader (what the frontend actually calls on page load)
 # ---------------------------------------------------------------------------
@@ -416,6 +422,39 @@ def save_racks():
     except Exception as e:
         import traceback
         print(f"Error in save_racks:\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/stock', methods=['GET'])
+@login_required
+def get_stock():
+    try:
+        from racks_handler import RacksHandler
+        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler.load()
+        items = handler.get_stock()
+        handler.close()
+        return jsonify({'success': True, 'items': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/stock/save', methods=['POST'])
+@login_required
+def save_stock():
+    try:
+        data = request.get_json()
+        if data is None or 'items' not in data:
+            return jsonify({'success': False, 'error': 'items payload is required'}), 400
+        from racks_handler import RacksHandler
+        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler.load()
+        handler.save_stock(data['items'])
+        handler.close()
+        return jsonify({'success': True})
+    except Exception as e:
+        import traceback
+        print(f"Error in save_stock:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

@@ -8,48 +8,8 @@ var QUANTITY_OPTIONS = [
     { value: '1',    label: '1'    },
 ];
 
-var ITEM_TYPE_OPTIONS = [
-    { value: '',        label: '— select —' },
-    { value: 'Bearers', label: 'Bearers'    },
-    { value: 'Boards',  label: 'Boards'     },
-    { value: 'Blocks',  label: 'Blocks'     },
-];
-
-var BEARER_SUBTYPE_OPTIONS = [
-    { value: '',            label: '— select —'  },
-    { value: 'Low Profile', label: 'Low Profile' },
-    { value: 'Standard',    label: 'Standard'    },
-];
-
-var BOARD_OPTIONS = [
-    { value: '',               label: '— select —'     },
-    { value: '65-85 12-15',    label: '65-85 12-15'    },
-    { value: '65-85 16-19',    label: '65-85 16-19'    },
-    { value: '65-85 20-23',    label: '65-85 20-23'    },
-    { value: '65-85 25',       label: '65-85 25'       },
-    { value: '85-105 12-15',   label: '85-105 12-15'   },
-    { value: '85-105 16-19',   label: '85-105 16-19'   },
-    { value: '85-105 20-23',   label: '85-105 20-23'   },
-    { value: '85-105 25',      label: '85-105 25'      },
-    { value: '105-125 12-15',  label: '105-125 12-15'  },
-    { value: '105-125 16-19',  label: '105-125 16-19'  },
-    { value: '105-125 20-23',  label: '105-125 20-23'  },
-    { value: '105-125 25',     label: '105-125 25'     },
-    { value: '125-145 12-15',  label: '125-145 12-15'  },
-    { value: '125-145 16-19',  label: '125-145 16-19'  },
-    { value: '125-145 20-23',  label: '125-145 20-23'  },
-    { value: '125-145 25',     label: '125-145 25'     },
-    { value: 'Narrow Mixed',   label: 'Narrow Mixed'   },
-    { value: 'Standard Mixed', label: 'Standard Mixed' },
-    { value: 'Heavy Mixed',    label: 'Heavy Mixed'    },
-    { value: 'Mixed',          label: 'Mixed'          },
-];
-
-var BLOCK_OPTIONS = [
-    { value: '',        label: '— select —' },
-    { value: '100x75',  label: '100x75'     },
-    { value: '100x100', label: '100x100'    },
-];
+// item_options.js loaded before this file — provides ITEM_TYPE_OPTIONS,
+// buildItemTypeOptions(), buildDimensionOptions(), escHtml()
 
 var locations = [];   // current location list
 
@@ -200,7 +160,7 @@ function appendRow(rack) {
 
     var hasType     = !!rack.item_type;
     var subtypeHtml = hasType
-        ? buildSubtypeOptions(rack.item_type, rack.item_subtype)
+        ? buildDimensionOptions(rack.item_type, rack.item_subtype)
         : '<option value="">— select type first —</option>';
 
     var tr = document.createElement('tr');
@@ -226,7 +186,7 @@ function appendRow(rack) {
     itemTypeSel.addEventListener('change', function () {
         var type = itemTypeSel.value;
         itemSubtypeSel.innerHTML = type
-            ? buildSubtypeOptions(type, '')
+            ? buildDimensionOptions(type, '')
             : '<option value="">— select type first —</option>';
         itemSubtypeSel.disabled = !type;
     });
@@ -253,23 +213,6 @@ function buildQtyOptions(selected) {
         html += '<option value="' + opt.value + '"' + (opt.value === selected ? ' selected' : '') + '>' + opt.label + '</option>';
     });
     return html;
-}
-
-function buildItemTypeOptions(selected) {
-    return ITEM_TYPE_OPTIONS.map(function (opt) {
-        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
-    }).join('');
-}
-
-function buildSubtypeOptions(type, selected) {
-    var opts;
-    if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS;
-    else if (type === 'Boards') opts = BOARD_OPTIONS;
-    else if (type === 'Blocks') opts = BLOCK_OPTIONS;
-    else return '<option value="">— select type first —</option>';
-    return opts.map(function (opt) {
-        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
-    }).join('');
 }
 
 function collectRows() {
@@ -305,10 +248,4 @@ function showAlert(type, msg) {
         '<div class="alert alert-' + type + ' alert-dismissible fade show py-2" role="alert">' +
           msg + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>' +
         '</div>';
-}
-
-function escHtml(str) {
-    return String(str || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
