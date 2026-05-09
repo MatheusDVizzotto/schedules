@@ -8,6 +8,49 @@ var QUANTITY_OPTIONS = [
     { value: '1',    label: '1'    },
 ];
 
+var ITEM_TYPE_OPTIONS = [
+    { value: '',        label: '— select —' },
+    { value: 'Bearers', label: 'Bearers'    },
+    { value: 'Boards',  label: 'Boards'     },
+    { value: 'Blocks',  label: 'Blocks'     },
+];
+
+var BEARER_SUBTYPE_OPTIONS = [
+    { value: '',            label: '— select —'  },
+    { value: 'Low Profile', label: 'Low Profile' },
+    { value: 'Standard',    label: 'Standard'    },
+];
+
+var BOARD_OPTIONS = [
+    { value: '',               label: '— select —'     },
+    { value: '65-85 12-15',    label: '65-85 12-15'    },
+    { value: '65-85 16-19',    label: '65-85 16-19'    },
+    { value: '65-85 20-23',    label: '65-85 20-23'    },
+    { value: '65-85 25',       label: '65-85 25'       },
+    { value: '85-105 12-15',   label: '85-105 12-15'   },
+    { value: '85-105 16-19',   label: '85-105 16-19'   },
+    { value: '85-105 20-23',   label: '85-105 20-23'   },
+    { value: '85-105 25',      label: '85-105 25'      },
+    { value: '105-125 12-15',  label: '105-125 12-15'  },
+    { value: '105-125 16-19',  label: '105-125 16-19'  },
+    { value: '105-125 20-23',  label: '105-125 20-23'  },
+    { value: '105-125 25',     label: '105-125 25'     },
+    { value: '125-145 12-15',  label: '125-145 12-15'  },
+    { value: '125-145 16-19',  label: '125-145 16-19'  },
+    { value: '125-145 20-23',  label: '125-145 20-23'  },
+    { value: '125-145 25',     label: '125-145 25'     },
+    { value: 'Narrow Mixed',   label: 'Narrow Mixed'   },
+    { value: 'Standard Mixed', label: 'Standard Mixed' },
+    { value: 'Heavy Mixed',    label: 'Heavy Mixed'    },
+    { value: 'Mixed',          label: 'Mixed'          },
+];
+
+var BLOCK_OPTIONS = [
+    { value: '',        label: '— select —' },
+    { value: '100x75',  label: '100x75'     },
+    { value: '100x100', label: '100x100'    },
+];
+
 var locations = [];   // current location list
 
 // ── Startup ───────────────────────────────────────────────────────────────────
@@ -16,7 +59,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadRacks();
 
     document.getElementById('addBayBtn').addEventListener('click', function () {
-        appendRow({ location: '', bay_code: '', size_preferable: '', actual_size: '', quantity: '' });
+        appendRow({ location: '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', item_type: '', item_subtype: '' });
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveRacks);
@@ -155,6 +198,11 @@ function appendRow(rack) {
     var empty = tbody.querySelector('.empty-state');
     if (empty) empty.parentElement.remove();
 
+    var hasType     = !!rack.item_type;
+    var subtypeHtml = hasType
+        ? buildSubtypeOptions(rack.item_type, rack.item_subtype)
+        : '<option value="">— select type first —</option>';
+
     var tr = document.createElement('tr');
     tr.innerHTML =
         '<td><select class="form-select form-select-sm" data-field="location">' + buildLocationOptions(rack.location) + '</select></td>' +
@@ -167,9 +215,21 @@ function appendRow(rack) {
             '<span class="qty-unit">box</span>' +
           '</div>' +
         '</td>' +
+        '<td><select class="form-select form-select-sm" data-field="item_type">' + buildItemTypeOptions(rack.item_type) + '</select></td>' +
+        '<td><select class="form-select form-select-sm" data-field="item_subtype"' + (hasType ? '' : ' disabled') + '>' + subtypeHtml + '</select></td>' +
         '<td class="text-center">' +
           '<button class="btn btn-sm btn-outline-danger btn-delete-row" title="Remove row"><i class="fas fa-trash-alt"></i></button>' +
         '</td>';
+
+    var itemTypeSel    = tr.querySelector('select[data-field="item_type"]');
+    var itemSubtypeSel = tr.querySelector('select[data-field="item_subtype"]');
+    itemTypeSel.addEventListener('change', function () {
+        var type = itemTypeSel.value;
+        itemSubtypeSel.innerHTML = type
+            ? buildSubtypeOptions(type, '')
+            : '<option value="">— select type first —</option>';
+        itemSubtypeSel.disabled = !type;
+    });
 
     tr.querySelector('.btn-delete-row').addEventListener('click', function () {
         tr.remove();
@@ -195,6 +255,23 @@ function buildQtyOptions(selected) {
     return html;
 }
 
+function buildItemTypeOptions(selected) {
+    return ITEM_TYPE_OPTIONS.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildSubtypeOptions(type, selected) {
+    var opts;
+    if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS;
+    else if (type === 'Boards') opts = BOARD_OPTIONS;
+    else if (type === 'Blocks') opts = BLOCK_OPTIONS;
+    else return '<option value="">— select type first —</option>';
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
 function collectRows() {
     var racks = [];
     document.querySelectorAll('#racksBody tr').forEach(function (tr) {
@@ -206,6 +283,8 @@ function collectRows() {
             size_preferable: inputs[1].value.trim(),
             actual_size:     inputs[2].value.trim(),
             quantity:        tr.querySelector('select[data-field="quantity"]').value,
+            item_type:       tr.querySelector('select[data-field="item_type"]').value,
+            item_subtype:    tr.querySelector('select[data-field="item_subtype"]').value,
         });
     });
     return racks;
@@ -213,7 +292,7 @@ function collectRows() {
 
 function setEmpty() {
     document.getElementById('racksBody').innerHTML =
-        '<tr><td colspan="6" class="text-center py-4 text-muted empty-state">' +
+        '<tr><td colspan="8" class="text-center py-4 text-muted empty-state">' +
           '<i class="fas fa-pallet me-2 opacity-50"></i>No bays yet. Click <strong>Add Bay</strong> to get started.' +
         '</td></tr>';
 }

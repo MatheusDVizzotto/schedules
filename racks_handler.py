@@ -14,7 +14,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from google_drive_handler import GoogleDriveHandler
 
 FILENAME = 'racks_management'
-HEADERS  = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity']
+HEADERS  = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Item Type', 'Item Subtype']
 
 HEADER_FILL  = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
 THIN_SIDE    = Side(style='thin')
@@ -95,6 +95,8 @@ class RacksHandler:
                     'size_preferable': str(row[1] or '').strip(),
                     'actual_size':     str(row[2] or '').strip(),
                     'quantity':        str(row[3] or '').strip(),
+                    'item_type':       str(row[4] or '').strip() if len(row) > 4 else '',
+                    'item_subtype':    str(row[5] or '').strip() if len(row) > 5 else '',
                 })
         return racks
 
@@ -124,6 +126,8 @@ class RacksHandler:
                     rack.get('size_preferable', ''),
                     rack.get('actual_size', ''),
                     rack.get('quantity', ''),
+                    rack.get('item_type', ''),
+                    rack.get('item_subtype', ''),
                 ]
                 for col_idx, val in enumerate(values, start=1):
                     cell           = ws.cell(row=row_idx, column=col_idx, value=val or None)
@@ -146,6 +150,8 @@ class RacksHandler:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 14
         ws.column_dimensions['D'].width = 14
+        ws.column_dimensions['E'].width = 14
+        ws.column_dimensions['F'].width = 18
         return ws
 
     def _new_workbook(self) -> openpyxl.Workbook:
