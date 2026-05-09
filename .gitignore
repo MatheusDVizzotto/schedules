@@ -3,6 +3,8 @@ credentials.json
 web_credentials.json
 drive_credentials.json
 token.pickle
+token_web.pickle
+credentials2.json
 
 # ── Runtime state ─────────────────────────────────────────────
 deleted_workers.json
