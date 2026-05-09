@@ -153,13 +153,21 @@ class RacksHandler:
             size       = str(row[0] or '').strip()
             item_type  = str(row[1] or '').strip()
             dimensions = str(row[2] or '').strip()
-            qty_on_hand = sum(
-                float(r['quantity']) for r in racks
-                if r['actual_size'] == size
-                and r['item_type']  == item_type
-                and r['item_subtype'] == dimensions
-                and r['quantity']
-            )
+            if dimensions == 'All Dimensions':
+                qty_on_hand = sum(
+                    float(r['quantity']) for r in racks
+                    if r['actual_size'] == size
+                    and r['item_type']  == item_type
+                    and r['quantity']
+                )
+            else:
+                qty_on_hand = sum(
+                    float(r['quantity']) for r in racks
+                    if r['actual_size']   == size
+                    and r['item_type']    == item_type
+                    and r['item_subtype'] == dimensions
+                    and r['quantity']
+                )
             items.append({
                 'size':        size,
                 'item_type':   item_type,

@@ -8,13 +8,15 @@ var ITEM_TYPE_OPTIONS = [
 ];
 
 var BEARER_SUBTYPE_OPTIONS = [
-    { value: '',            label: '— select —'  },
-    { value: 'Low Profile', label: 'Low Profile' },
-    { value: 'Standard',    label: 'Standard'    },
+    { value: '',               label: '— select —'    },
+    { value: 'All Dimensions', label: 'All Dimensions' },
+    { value: 'Low Profile',    label: 'Low Profile'   },
+    { value: 'Standard',       label: 'Standard'      },
 ];
 
 var BOARD_OPTIONS = [
     { value: '',               label: '— select —'     },
+    { value: 'All Dimensions', label: 'All Dimensions' },
     { value: '65-85 12-15',    label: '65-85 12-15'    },
     { value: '65-85 16-19',    label: '65-85 16-19'    },
     { value: '65-85 20-23',    label: '65-85 20-23'    },
@@ -38,9 +40,10 @@ var BOARD_OPTIONS = [
 ];
 
 var BLOCK_OPTIONS = [
-    { value: '',        label: '— select —' },
-    { value: '100x75',  label: '100x75'     },
-    { value: '100x100', label: '100x100'    },
+    { value: '',               label: '— select —'    },
+    { value: 'All Dimensions', label: 'All Dimensions' },
+    { value: '100x75',         label: '100x75'        },
+    { value: '100x100',        label: '100x100'       },
 ];
 
 function buildItemTypeOptions(selected) {
