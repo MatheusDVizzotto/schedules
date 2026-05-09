@@ -6,7 +6,12 @@ var allBays  = [];
 
 var ITEM_TYPES = ['Boards', 'Bearers', 'Blocks'];
 
-document.addEventListener('DOMContentLoaded', loadDashboard);
+var REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+
+document.addEventListener('DOMContentLoaded', function () {
+    loadDashboard();
+    setInterval(refreshData, REFRESH_INTERVAL_MS);
+});
 
 // ── Load ──────────────────────────────────────────────────────────────────────
 
@@ -21,9 +26,48 @@ async function loadDashboard() {
         document.getElementById('loadingSpinner').classList.add('d-none');
         document.getElementById('filterPanel').classList.remove('d-none');
         document.getElementById('dashboardArea').classList.remove('d-none');
+        updateLastRefreshed();
         renderDashboard();
     } catch (err) {
         showFetchError(err.message);
+    }
+}
+
+async function refreshData() {
+    try {
+        var saved = getSelected(); // save current selections before rebuild
+
+        var res  = await fetch('/api/racks/stock/dashboard');
+        var data = await res.json();
+        if (!data.success) return; // silently skip on error; don't disrupt the UI
+
+        allStock = data.stock;
+        allBays  = data.bays;
+
+        buildFilters();
+        restoreSelections(saved);
+        updateLastRefreshed();
+        renderDashboard();
+    } catch (err) {
+        // silent — don't disrupt the user's current view
+    }
+}
+
+function restoreSelections(saved) {
+    saved.forEach(function (sel) {
+        var id = 'chk-' + sel.item_type +
+            '-' + sel.size.replace(/[^a-zA-Z0-9]/g, '_') +
+            '-' + sel.dimensions.replace(/[^a-zA-Z0-9]/g, '_');
+        var chk = document.getElementById(id);
+        if (chk) chk.checked = true;
+    });
+}
+
+function updateLastRefreshed() {
+    var el = document.getElementById('lastRefreshed');
+    if (el) {
+        var now = new Date();
+        el.textContent = 'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 }
 
