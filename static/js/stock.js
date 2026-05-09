@@ -74,7 +74,7 @@ function appendRow(item) {
         ? buildDimensionOptions(item.item_type, item.dimensions)
         : '<option value="">— select type first —</option>';
     var qtyDisplay  = item.qty_on_hand !== null && item.qty_on_hand !== undefined
-        ? Number(item.qty_on_hand).toFixed(2)
+        ? Number(item.qty_on_hand).toFixed(2) + ' <span class="qty-unit">box</span>'
         : '<span class="text-muted fst-italic">—</span>';
 
     var tr = document.createElement('tr');
