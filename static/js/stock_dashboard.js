@@ -28,23 +28,45 @@ async function loadDashboard() {
 }
 
 // ── Filters ───────────────────────────────────────────────────────────────────
+// Each checkbox represents a specific size + dimension combination.
+// Groups are: item_type → size → [dimensions...]
 
 function buildFilters() {
     ITEM_TYPES.forEach(function (type) {
-        var sizes = uniqueSizesForType(type);
         var container = document.getElementById('filter-' + type.toLowerCase());
         if (!container) return;
+
+        // Build size → dimensions map from stock items for this type
+        var bySize = {};
+        allStock.forEach(function (s) {
+            if (s.item_type !== type || !s.size) return;
+            if (!bySize[s.size]) bySize[s.size] = [];
+            bySize[s.size].push(s.dimensions);
+        });
+
+        var sizes = Object.keys(bySize).sort();
         if (sizes.length === 0) {
             container.innerHTML = '<span class="text-muted fst-italic small">No sizes in stock.</span>';
             return;
         }
+
         container.innerHTML = sizes.map(function (size) {
-            var id = 'chk-' + type + '-' + size.replace(/[^a-zA-Z0-9]/g, '_');
-            return '<div class="form-check">' +
-                '<input class="form-check-input filter-check" type="checkbox" ' +
-                'id="' + escHtml(id) + '" ' +
-                'data-type="' + escHtml(type) + '" data-size="' + escHtml(size) + '">' +
-                '<label class="form-check-label" for="' + escHtml(id) + '">' + escHtml(size) + '</label>' +
+            var dims = bySize[size];
+            var dimsHtml = dims.map(function (dim) {
+                var id = 'chk-' + type + '-' + size.replace(/[^a-zA-Z0-9]/g, '_') + '-' + dim.replace(/[^a-zA-Z0-9]/g, '_');
+                return '<div class="form-check ms-3">' +
+                    '<input class="form-check-input filter-check" type="checkbox" ' +
+                    'id="' + escHtml(id) + '" ' +
+                    'data-type="' + escHtml(type) + '" ' +
+                    'data-size="' + escHtml(size) + '" ' +
+                    'data-dim="' + escHtml(dim) + '">' +
+                    '<label class="form-check-label small" for="' + escHtml(id) + '">' + escHtml(dim) + '</label>' +
+                    '</div>';
+            }).join('');
+
+            return '<div class="mb-2">' +
+                '<div class="fw-semibold small mb-1" style="color:#2d5a27;">' + escHtml(size) + '</div>' +
+                dimsHtml +
                 '</div>';
         }).join('');
 
@@ -54,19 +76,15 @@ function buildFilters() {
     });
 }
 
-function uniqueSizesForType(type) {
-    var seen = {};
-    allStock.forEach(function (s) {
-        if (s.item_type === type && s.size) seen[s.size] = true;
-    });
-    return Object.keys(seen).sort();
-}
-
 function getSelected() {
-    var selected = {};
-    ITEM_TYPES.forEach(function (t) { selected[t] = []; });
+    // Returns array of {item_type, size, dimensions}
+    var selected = [];
     document.querySelectorAll('.filter-check:checked').forEach(function (chk) {
-        selected[chk.dataset.type].push(chk.dataset.size);
+        selected.push({
+            item_type:  chk.dataset.type,
+            size:       chk.dataset.size,
+            dimensions: chk.dataset.dim,
+        });
     });
     return selected;
 }
@@ -77,33 +95,36 @@ function renderDashboard() {
     var selected = getSelected();
     var area = document.getElementById('dashboardArea');
 
-    var hasAny = ITEM_TYPES.some(function (t) { return selected[t].length > 0; });
-    if (!hasAny) {
+    if (selected.length === 0) {
         area.innerHTML =
             '<p class="text-muted fst-italic text-center py-5">' +
             '<i class="fas fa-hand-pointer me-2 opacity-50"></i>' +
-            'Select sizes from the filters above to view the dashboard.' +
+            'Select sizes and dimensions from the filters above to view the dashboard.' +
             '</p>';
         return;
     }
 
+    // Group selected by item_type for section headers
+    var byType = {};
+    selected.forEach(function (sel) {
+        if (!byType[sel.item_type]) byType[sel.item_type] = [];
+        byType[sel.item_type].push(sel);
+    });
+
     var html = '';
     ITEM_TYPES.forEach(function (type) {
-        if (selected[type].length === 0) return;
+        if (!byType[type]) return;
 
         html += '<h5 class="mt-4 mb-3 fw-semibold section-title">' +
             '<i class="fas fa-cube me-2" style="color:#2d5a27;"></i>' + escHtml(type) + '</h5>';
         html += '<div class="row g-3">';
 
-        selected[type].forEach(function (size) {
-            var items = allStock.filter(function (s) {
-                return s.item_type === type && s.size === size;
+        byType[type].forEach(function (sel) {
+            var item = allStock.find(function (s) {
+                return s.item_type === sel.item_type && s.size === sel.size && s.dimensions === sel.dimensions;
             });
-            if (items.length === 0) {
-                html += '<div class="col-12"><div class="alert alert-light py-2 small">No stock entries for <strong>' +
-                    escHtml(size) + '</strong>.</div></div>';
-            } else {
-                items.forEach(function (item) { html += buildCard(item); });
+            if (item) {
+                html += buildCard(item);
             }
         });
 
@@ -112,6 +133,8 @@ function renderDashboard() {
 
     area.innerHTML = html;
 }
+
+// ── Card ──────────────────────────────────────────────────────────────────────
 
 function buildCard(item) {
     var qty      = parseFloat(item.qty_on_hand) || 0;
