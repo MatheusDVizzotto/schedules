@@ -178,7 +178,10 @@ function appendRow(rack) {
         '<td><select class="form-select form-select-sm" data-field="item_type">' + buildItemTypeOptions(rack.item_type) + '</select></td>' +
         '<td><select class="form-select form-select-sm" data-field="item_subtype"' + (hasType ? '' : ' disabled') + '>' + subtypeHtml + '</select></td>' +
         '<td class="text-center">' +
-          '<button class="btn btn-sm btn-outline-danger btn-delete-row" title="Remove row"><i class="fas fa-trash-alt"></i></button>' +
+          '<div class="d-flex gap-1 justify-content-center">' +
+            '<button class="btn btn-sm btn-outline-secondary btn-clear-bay" title="Clear bay"><i class="fas fa-broom"></i></button>' +
+            '<button class="btn btn-sm btn-outline-danger btn-delete-row" title="Remove row"><i class="fas fa-trash-alt"></i></button>' +
+          '</div>' +
         '</td>';
 
     var itemTypeSel    = tr.querySelector('select[data-field="item_type"]');
@@ -189,6 +192,11 @@ function appendRow(rack) {
             ? buildDimensionOptions(type, '')
             : '<option value="">— select type first —</option>';
         itemSubtypeSel.disabled = !type;
+    });
+
+    tr.querySelector('.btn-clear-bay').addEventListener('click', function () {
+        tr.querySelectorAll('input')[2].value = '';  // actual_size (3rd input)
+        tr.querySelector('select[data-field="quantity"]').value = '';
     });
 
     tr.querySelector('.btn-delete-row').addEventListener('click', function () {
