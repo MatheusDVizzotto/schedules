@@ -71,7 +71,7 @@ function appendRow(item) {
 
     var hasType     = !!item.item_type;
     var dimHtml     = hasType
-        ? buildDimensionOptions(item.item_type, item.dimensions)
+        ? buildDimensionOptions(item.item_type, item.dimensions, true)
         : '<option value="">— select type first —</option>';
     var qtyDisplay  = item.qty_on_hand !== null && item.qty_on_hand !== undefined
         ? Number(item.qty_on_hand).toFixed(2) + ' <span class="qty-unit">box</span>'
@@ -94,7 +94,7 @@ function appendRow(item) {
     itemTypeSel.addEventListener('change', function () {
         var type = itemTypeSel.value;
         dimensionSel.innerHTML = type
-            ? buildDimensionOptions(type, '')
+            ? buildDimensionOptions(type, '', true)
             : '<option value="">— select type first —</option>';
         dimensionSel.disabled = !type;
     });

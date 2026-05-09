@@ -52,12 +52,13 @@ function buildItemTypeOptions(selected) {
     }).join('');
 }
 
-function buildDimensionOptions(type, selected) {
+function buildDimensionOptions(type, selected, includeAll) {
     var opts;
     if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS;
     else if (type === 'Boards') opts = BOARD_OPTIONS;
     else if (type === 'Blocks') opts = BLOCK_OPTIONS;
     else return '<option value="">— select type first —</option>';
+    if (!includeAll) opts = opts.filter(function (o) { return o.value !== 'All Dimensions'; });
     return opts.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');
