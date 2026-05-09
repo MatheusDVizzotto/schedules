@@ -134,22 +134,38 @@ function renderDashboard() {
     area.innerHTML = html;
 }
 
+// ── Toggle filters ────────────────────────────────────────────────────────────
+
+function toggleFilters() {
+    var body = document.querySelector('#filterPanel .card-body');
+    var btn  = document.getElementById('toggleFiltersBtn');
+    var hidden = body.classList.toggle('d-none');
+    btn.innerHTML = hidden
+        ? '<i class="fas fa-chevron-down me-1"></i> Show Filters'
+        : '<i class="fas fa-chevron-up me-1"></i> Hide Filters';
+}
+
 // ── Card ──────────────────────────────────────────────────────────────────────
 
 function buildCard(item) {
     var qty      = parseFloat(item.qty_on_hand) || 0;
-    var minQty   = item.min_on_hand !== '' ? parseFloat(item.min_on_hand) : null;
-    var maxQty   = item.max_on_hand !== '' ? parseFloat(item.max_on_hand) : null;
+    var minQty   = item.min_on_hand !== '' && item.min_on_hand !== null ? parseFloat(item.min_on_hand) : null;
+    var maxQty   = item.max_on_hand !== '' && item.max_on_hand !== null ? parseFloat(item.max_on_hand) : null;
     var isAllDim = item.dimensions === 'All Dimensions';
 
     var qtyClass = 'text-dark';
     var qtyBadge = '';
-    if (minQty !== null && qty < minQty) {
+
+    if (maxQty !== null && qty > maxQty) {
+        qtyClass = 'text-success fw-bold';
+        qtyBadge = '<span class="badge bg-danger ms-2 small">OverFlow</span>';
+    } else if (minQty !== null && qty < minQty) {
         qtyClass = 'text-danger fw-bold';
-        qtyBadge = '<span class="badge bg-danger ms-2 small">Below Min</span>';
-    } else if (maxQty !== null && qty > maxQty) {
-        qtyClass = 'text-warning fw-bold';
-        qtyBadge = '<span class="badge bg-warning text-dark ms-2 small">Above Max</span>';
+    } else if (minQty !== null && maxQty !== null) {
+        var midpoint = (minQty + maxQty) / 2;
+        qtyClass = qty >= midpoint ? 'text-success fw-bold' : 'text-warning fw-bold';
+    } else if (minQty !== null) {
+        qtyClass = 'text-success fw-bold';
     }
 
     var html =
