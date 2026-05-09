@@ -101,6 +101,12 @@ def stock_page():
     return render_template('stock.html')
 
 
+@app.route('/racks/stock-dashboard')
+@login_required
+def stock_dashboard_page():
+    return render_template('stock_dashboard.html')
+
+
 # ---------------------------------------------------------------------------
 # API – combined loader (what the frontend actually calls on page load)
 # ---------------------------------------------------------------------------
@@ -422,6 +428,21 @@ def save_racks():
     except Exception as e:
         import traceback
         print(f"Error in save_racks:\n{traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/stock/dashboard', methods=['GET'])
+@login_required
+def get_stock_dashboard():
+    try:
+        from racks_handler import RacksHandler
+        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler.load()
+        stock = handler.get_stock()
+        bays  = handler.get_racks()
+        handler.close()
+        return jsonify({'success': True, 'stock': stock, 'bays': bays})
+    except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
