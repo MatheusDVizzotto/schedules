@@ -122,7 +122,7 @@ class GoogleDriveHandler:
 
     def download_file(self, file_id: str) -> io.BytesIO:
         try:
-            req    = self.service.files().get_media(fileId=file_id)
+            req    = self.service.files().get_media(fileId=file_id, supportsAllDrives=True)
             buf    = io.BytesIO()
             dl     = MediaIoBaseDownload(buf, req)
             done   = False
@@ -138,7 +138,9 @@ class GoogleDriveHandler:
         try:
             file_buffer.seek(0)
             media  = MediaIoBaseUpload(file_buffer, mimetype=mime_type, resumable=True)
-            result = self.service.files().update(fileId=file_id, media_body=media).execute()
+            result = self.service.files().update(
+                fileId=file_id, media_body=media, supportsAllDrives=True
+            ).execute()
             return result
         except HttpError as e:
             raise RuntimeError(f"Drive upload HTTP error {file_id}: {e}") from e
@@ -150,7 +152,10 @@ class GoogleDriveHandler:
             q = f"name='{filename}' and trashed=false"
             if folder_id:
                 q += f" and '{folder_id}' in parents"
-            res   = self.service.files().list(q=q, spaces='drive', fields='files(id,name)', pageSize=10).execute()
+            res   = self.service.files().list(
+                q=q, spaces='drive', fields='files(id,name)', pageSize=10,
+                includeItemsFromAllDrives=True, supportsAllDrives=True
+            ).execute()
             files = res.get('files', [])
             return files[0]['id'] if files else None
         except HttpError as e:
@@ -168,7 +173,7 @@ class GoogleDriveHandler:
                 metadata['parents'] = [folder_id]
             media    = MediaIoBaseUpload(file_buffer, mimetype=mime_type, resumable=True)
             result   = self.service.files().create(
-                body=metadata, media_body=media, fields='id'
+                body=metadata, media_body=media, fields='id', supportsAllDrives=True
             ).execute()
             return result['id']
         except HttpError as e:
@@ -178,7 +183,8 @@ class GoogleDriveHandler:
         try:
             return self.service.files().get(
                 fileId=file_id,
-                fields='id,name,mimeType,size,modifiedTime,webViewLink,parents'
+                fields='id,name,mimeType,size,modifiedTime,webViewLink,parents',
+                supportsAllDrives=True
             ).execute()
         except HttpError as e:
             print(f"Error getting metadata {file_id}: {e}")
