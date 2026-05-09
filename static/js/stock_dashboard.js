@@ -7,10 +7,24 @@ var allBays  = [];
 var ITEM_TYPES = ['Boards', 'Bearers', 'Blocks'];
 
 var REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+var lastRefreshTime     = null;
 
 document.addEventListener('DOMContentLoaded', function () {
     loadDashboard();
-    setInterval(refreshData, REFRESH_INTERVAL_MS);
+
+    // Only refresh when the page is visible
+    setInterval(function () {
+        if (!document.hidden) refreshData();
+    }, REFRESH_INTERVAL_MS);
+
+    // When the user returns to the tab, refresh if 30+ min have passed
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden && lastRefreshTime !== null) {
+            if (Date.now() - lastRefreshTime >= REFRESH_INTERVAL_MS) {
+                refreshData();
+            }
+        }
+    });
 });
 
 // ── Load ──────────────────────────────────────────────────────────────────────
@@ -26,6 +40,7 @@ async function loadDashboard() {
         document.getElementById('loadingSpinner').classList.add('d-none');
         document.getElementById('filterPanel').classList.remove('d-none');
         document.getElementById('dashboardArea').classList.remove('d-none');
+        lastRefreshTime = Date.now();
         updateLastRefreshed();
         renderDashboard();
     } catch (err) {
@@ -46,6 +61,7 @@ async function refreshData() {
 
         buildFilters();
         restoreSelections(saved);
+        lastRefreshTime = Date.now();
         updateLastRefreshed();
         renderDashboard();
     } catch (err) {
