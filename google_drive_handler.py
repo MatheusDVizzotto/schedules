@@ -158,11 +158,14 @@ class GoogleDriveHandler:
             return None
 
     def create_file(self, filename: str, file_buffer: io.BytesIO,
-                    mime_type: str = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet') -> str:
+                    mime_type: str = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    folder_id: str | None = None) -> str:
         """Upload a new file to Drive and return its file_id."""
         try:
             file_buffer.seek(0)
             metadata = {'name': filename}
+            if folder_id:
+                metadata['parents'] = [folder_id]
             media    = MediaIoBaseUpload(file_buffer, mimetype=mime_type, resumable=True)
             result   = self.service.files().create(
                 body=metadata, media_body=media, fields='id'

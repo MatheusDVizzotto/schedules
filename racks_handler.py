@@ -24,10 +24,19 @@ CENTER_ALIGN = Alignment(horizontal='center', vertical='center')
 
 class RacksHandler:
 
-    def __init__(self):
-        self.gdrive   = GoogleDriveHandler()
-        self.file_id  = self.gdrive.get_file_id_by_name(FILENAME)
-        self.workbook = None
+    def __init__(self, schedule_file_id: str | None = None):
+        self.gdrive    = GoogleDriveHandler()
+        self._folder_id = self._resolve_folder(schedule_file_id)
+        self.file_id   = self.gdrive.get_file_id_by_name(FILENAME, self._folder_id)
+        self.workbook  = None
+
+    def _resolve_folder(self, schedule_file_id: str | None) -> str | None:
+        if not schedule_file_id:
+            return None
+        meta = self.gdrive.get_file_metadata(schedule_file_id)
+        if meta and meta.get('parents'):
+            return meta['parents'][0]
+        return None
 
     # ------------------------------------------------------------------
 
@@ -38,7 +47,7 @@ class RacksHandler:
         else:
             self.workbook = self._new_workbook()
             buf           = self._serialise()
-            self.file_id  = self.gdrive.create_file(FILENAME, buf)
+            self.file_id  = self.gdrive.create_file(FILENAME, buf, folder_id=self._folder_id)
             print(f"  Created new Google Drive file '{FILENAME}' — id={self.file_id}")
 
     def close(self):

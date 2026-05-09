@@ -390,7 +390,7 @@ def get_schedule(date_str):
 def get_racks():
     try:
         from racks_handler import RacksHandler
-        handler = RacksHandler()
+        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
         handler.load()
         racks     = handler.get_racks()
         locations = handler.get_locations()
@@ -408,7 +408,7 @@ def save_racks():
         if data is None or 'racks' not in data:
             return jsonify({'success': False, 'error': 'racks payload is required'}), 400
         from racks_handler import RacksHandler
-        handler = RacksHandler()
+        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
         handler.load()
         handler.save_racks(data['racks'])
         handler.close()
@@ -427,7 +427,7 @@ def add_rack_location():
         if not data or not data.get('name'):
             return jsonify({'success': False, 'error': 'name is required'}), 400
         from racks_handler import RacksHandler
-        handler   = RacksHandler()
+        handler   = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
         handler.load()
         locations = handler.add_location(data['name'].strip())
         handler.close()
