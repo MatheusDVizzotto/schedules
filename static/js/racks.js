@@ -11,7 +11,8 @@ var QUANTITY_OPTIONS = [
 // item_options.js loaded before this file — provides ITEM_TYPE_OPTIONS,
 // buildItemTypeOptions(), buildDimensionOptions(), escHtml()
 
-var locations = [];   // current location list
+var locations = [];              // current location list
+var activeLocationFilter = null; // null = show all
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
@@ -19,7 +20,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadRacks();
 
     document.getElementById('addBayBtn').addEventListener('click', function () {
-        appendRow({ location: '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', item_type: '', item_subtype: '' });
+        appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', item_type: '', item_subtype: '' });
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveRacks);
@@ -70,9 +71,44 @@ function renderLocationsPanel() {
         panel.innerHTML = '<span class="text-muted small fst-italic">No locations yet — add one above.</span>';
         return;
     }
-    panel.innerHTML = locations.map(function (loc) {
-        return '<span class="location-chip"><i class="fas fa-map-marker-alt me-1" style="color:#2d5a27;font-size:0.75rem;"></i>' + escHtml(loc) + '</span>';
+    var html = locations.map(function (loc) {
+        var isActive = loc === activeLocationFilter;
+        return '<span class="location-chip' + (isActive ? ' location-chip-active' : '') + '" data-loc="' + escHtml(loc) + '" title="Click to filter bays by this location">' +
+            '<i class="fas fa-map-marker-alt me-1" style="font-size:0.75rem;"></i>' + escHtml(loc) + '</span>';
     }).join('');
+    if (activeLocationFilter) {
+        html += '<a href="#" class="small ms-2 text-muted" id="clearLocFilter" style="text-decoration:none;">× Show all</a>';
+    }
+    panel.innerHTML = html;
+
+    panel.querySelectorAll('.location-chip').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var loc = chip.getAttribute('data-loc');
+            activeLocationFilter = (activeLocationFilter === loc) ? null : loc;
+            renderLocationsPanel();
+            filterBaysTable();
+        });
+    });
+
+    var clearBtn = panel.querySelector('#clearLocFilter');
+    if (clearBtn) {
+        clearBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            activeLocationFilter = null;
+            renderLocationsPanel();
+            filterBaysTable();
+        });
+    }
+}
+
+function filterBaysTable() {
+    document.querySelectorAll('#racksBody tr').forEach(function (tr) {
+        if (tr.querySelector('.empty-state')) return;
+        if (!activeLocationFilter) { tr.style.display = ''; return; }
+        var locSel = tr.querySelector('select[data-field="location"]');
+        if (!locSel) return;
+        tr.style.display = (locSel.value === activeLocationFilter) ? '' : 'none';
+    });
 }
 
 async function submitAddLocation() {
@@ -184,8 +220,12 @@ function appendRow(rack) {
           '</div>' +
         '</td>';
 
+    var locSelect      = tr.querySelector('select[data-field="location"]');
     var itemTypeSel    = tr.querySelector('select[data-field="item_type"]');
     var itemSubtypeSel = tr.querySelector('select[data-field="item_subtype"]');
+
+    locSelect.addEventListener('change', function () { filterBaysTable(); });
+
     itemTypeSel.addEventListener('change', function () {
         var type = itemTypeSel.value;
         itemSubtypeSel.innerHTML = type

@@ -25,7 +25,11 @@
             display: inline-flex; align-items: center; gap: 5px;
             background: var(--header-bg); border: 1px solid var(--border);
             border-radius: 20px; padding: 3px 12px; font-size: 0.82rem;
+            cursor: pointer; user-select: none; transition: background 0.15s, border-color 0.15s;
         }
+        .location-chip:hover { background: #d4edcc; border-color: #2d5a27; }
+        .location-chip-active { background: #2d5a27 !important; color: #fff !important; border-color: #2d5a27 !important; }
+        .location-chip-active i { color: #fff !important; }
     </style>
 </head>
 <body>
