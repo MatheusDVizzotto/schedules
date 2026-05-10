@@ -197,6 +197,9 @@ function appendRow(rack) {
     tr.querySelector('.btn-clear-bay').addEventListener('click', function () {
         tr.querySelectorAll('input')[2].value = '';  // actual_size (3rd input)
         tr.querySelector('select[data-field="quantity"]').value = '';
+        itemTypeSel.value = '';
+        itemSubtypeSel.innerHTML = '<option value="">— select type first —</option>';
+        itemSubtypeSel.disabled = true;
     });
 
     tr.querySelector('.btn-delete-row').addEventListener('click', function () {
