@@ -11,6 +11,9 @@ var BEARER_SUBTYPE_OPTIONS = [
     { value: '',               label: '— select —'    },
     { value: 'All Dimensions', label: 'All Dimensions' },
     { value: 'Low Profile',    label: 'Low Profile'   },
+    { value: 'Mixed',          label: 'Mixed'         },
+    { value: 'Noched',         label: 'Noched'        },
+    { value: 'Square',         label: 'Square'        },
     { value: 'Standard',       label: 'Standard'      },
 ];
 
@@ -45,6 +48,20 @@ var BLOCK_OPTIONS = [
     { value: '100x75',         label: '100x75'        },
     { value: '100x100',        label: '100x100'       },
 ];
+
+var QTY_UNIT_OPTIONS = [
+    { value: '',         label: '— unit —'  },
+    { value: 'box',      label: 'box'       },
+    { value: 'pc',       label: 'pc'        },
+    { value: 'pallet',   label: 'pallet'    },
+    { value: 'Stillage', label: 'Stillage'  },
+];
+
+function buildQtyUnitOptions(selected) {
+    return QTY_UNIT_OPTIONS.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
 
 function buildItemTypeOptions(selected) {
     return ITEM_TYPE_OPTIONS.map(function (opt) {

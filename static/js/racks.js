@@ -1,12 +1,13 @@
 // static/js/racks.js
 
-var QUANTITY_OPTIONS = [
-    { value: '',     label: 'None' },
-    { value: '0.25', label: '0.25' },
-    { value: '0.50', label: '0.50' },
-    { value: '0.75', label: '0.75' },
-    { value: '1',    label: '1'    },
-];
+var QUANTITY_OPTIONS = (function () {
+    var opts = [{ value: '', label: 'None' }];
+    for (var i = 0.25; i <= 6; i = Math.round((i + 0.25) * 100) / 100) {
+        var label = Number.isInteger(i) ? String(i) : i.toFixed(2);
+        opts.push({ value: label, label: label });
+    }
+    return opts;
+}());
 
 // item_options.js loaded before this file — provides ITEM_TYPE_OPTIONS,
 // buildItemTypeOptions(), buildDimensionOptions(), escHtml()
@@ -20,7 +21,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadRacks();
 
     document.getElementById('addBayBtn').addEventListener('click', function () {
-        appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', item_type: '', item_subtype: '' });
+        appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', qty_unit: '', item_type: '', item_subtype: '' });
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveRacks);
@@ -208,7 +209,7 @@ function appendRow(rack) {
         '<td>' +
           '<div class="d-flex align-items-center gap-1">' +
             '<select class="form-select form-select-sm" data-field="quantity" style="width:90px;">' + buildQtyOptions(rack.quantity) + '</select>' +
-            '<span class="qty-unit">box</span>' +
+            '<select class="form-select form-select-sm" data-field="qty_unit" style="width:100px;">' + buildQtyUnitOptions(rack.qty_unit || '') + '</select>' +
           '</div>' +
         '</td>' +
         '<td><select class="form-select form-select-sm" data-field="item_type">' + buildItemTypeOptions(rack.item_type) + '</select></td>' +
@@ -237,6 +238,7 @@ function appendRow(rack) {
     tr.querySelector('.btn-clear-bay').addEventListener('click', function () {
         tr.querySelectorAll('input')[2].value = '';  // actual_size (3rd input)
         tr.querySelector('select[data-field="quantity"]').value = '';
+        tr.querySelector('select[data-field="qty_unit"]').value = '';
         itemTypeSel.value = '';
         itemSubtypeSel.innerHTML = '<option value="">— select type first —</option>';
         itemSubtypeSel.disabled = true;
@@ -277,6 +279,7 @@ function collectRows() {
             size_preferable: inputs[1].value.trim(),
             actual_size:     inputs[2].value.trim(),
             quantity:        tr.querySelector('select[data-field="quantity"]').value,
+            qty_unit:        tr.querySelector('select[data-field="qty_unit"]').value,
             item_type:       tr.querySelector('select[data-field="item_type"]').value,
             item_subtype:    tr.querySelector('select[data-field="item_subtype"]').value,
         });

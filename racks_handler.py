@@ -14,7 +14,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from google_drive_handler import GoogleDriveHandler
 
 FILENAME      = 'racks_management'
-HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Item Type', 'Dimensions']
+HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Quantity Unit', 'Item Type', 'Dimensions']
 STOCK_SHEET   = '_stock_'
 STOCK_HEADERS = ['Size', 'Item Type', 'Dimensions', 'Min On Hand', 'Max On Hand']
 
@@ -97,8 +97,9 @@ class RacksHandler:
                     'size_preferable': str(row[1] or '').strip(),
                     'actual_size':     str(row[2] or '').strip(),
                     'quantity':        str(row[3] or '').strip(),
-                    'item_type':       str(row[4] or '').strip() if len(row) > 4 else '',
-                    'item_subtype':    str(row[5] or '').strip() if len(row) > 5 else '',
+                    'qty_unit':        str(row[4] or '').strip() if len(row) > 4 else '',
+                    'item_type':       str(row[5] or '').strip() if len(row) > 5 else '',
+                    'item_subtype':    str(row[6] or '').strip() if len(row) > 6 else '',
                 })
         return racks
 
@@ -128,6 +129,7 @@ class RacksHandler:
                     rack.get('size_preferable', ''),
                     rack.get('actual_size', ''),
                     rack.get('quantity', ''),
+                    rack.get('qty_unit', ''),
                     rack.get('item_type', ''),
                     rack.get('item_subtype', ''),
                 ]
@@ -228,8 +230,9 @@ class RacksHandler:
         ws.column_dimensions['B'].width = 18
         ws.column_dimensions['C'].width = 14
         ws.column_dimensions['D'].width = 14
-        ws.column_dimensions['E'].width = 14
-        ws.column_dimensions['F'].width = 18
+        ws.column_dimensions['E'].width = 16
+        ws.column_dimensions['F'].width = 14
+        ws.column_dimensions['G'].width = 18
         return ws
 
     def _new_workbook(self) -> openpyxl.Workbook:
