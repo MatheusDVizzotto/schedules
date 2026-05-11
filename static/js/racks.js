@@ -26,6 +26,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('saveBtn').addEventListener('click', saveRacks);
 
+    document.getElementById('applyUnitBtn').addEventListener('click', function () {
+        var loc  = document.getElementById('bulkUnitLoc').value;
+        var unit = document.getElementById('bulkUnit').value;
+        if (!loc) { showAlert('warning', '<i class="fas fa-exclamation-triangle me-1"></i> Please select a location first.'); return; }
+        var rows = document.querySelectorAll('#racksBody tr');
+        var count = 0;
+        rows.forEach(function (tr) {
+            var locSel = tr.querySelector('select[data-field="location"]');
+            if (!locSel || locSel.value !== loc) return;
+            tr.querySelector('select[data-field="qty_unit"]').value = unit;
+            count++;
+        });
+        showAlert('success', '<i class="fas fa-check-circle me-1"></i> Set unit to <strong>' + escHtml(unit) + '</strong> for ' + count + ' bay(s) in <strong>' + escHtml(loc) + '</strong>.');
+    });
+
     // Location form toggle
     document.getElementById('addLocationBtn').addEventListener('click', function () {
         document.getElementById('addLocationForm').classList.remove('d-none');
@@ -100,6 +115,13 @@ function renderLocationsPanel() {
             filterBaysTable();
         });
     }
+
+    var bulkLocSel = document.getElementById('bulkUnitLoc');
+    var current = bulkLocSel.value;
+    bulkLocSel.innerHTML = '<option value="">— location —</option>' +
+        locations.map(function (loc) {
+            return '<option value="' + escHtml(loc) + '"' + (loc === current ? ' selected' : '') + '>' + escHtml(loc) + '</option>';
+        }).join('');
 }
 
 function filterBaysTable() {
