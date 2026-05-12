@@ -533,45 +533,52 @@ class ExcelHandlerGDrive:
                 c.border = self.thin_border
 
             # Paint yellow for assigned time range
-            # Cell text: "Alice 07:00-15:00, Bob 08:00-16:00 - notes"
+            # One separate merged yellow block per distinct time range
             if entry:
-                worker_parts = [
-                    f"{we['name']} {we['time_start']}-{we['time_finish']}"
-                    for we in entry['worker_entries']
-                ]
-                workers_text = ', '.join(worker_parts)
-                notes_text   = ' | '.join(entry['notes']) if entry['notes'] else ''
-                cell_text    = workers_text
-                if notes_text:
-                    cell_text += f' - {notes_text}'
+                notes_text = ' | '.join(entry['notes']) if entry['notes'] else ''
 
-                t_start    = entry['time_start']
-                t_finish   = entry['time_finish']
-                start_idx  = self._slot_index(t_start, time_slots)
-                finish_idx = self._slot_index(t_finish, time_slots)
+                # Group workers by (time_start, time_finish)
+                time_groups: dict[tuple, list] = {}
+                for we in entry['worker_entries']:
+                    key = (we['time_start'], we['time_finish'])
+                    time_groups.setdefault(key, []).append(we['name'])
 
-                if start_idx is not None and finish_idx is not None:
+                for (t_start, t_finish), names in sorted(time_groups.items()):
+                    worker_parts = [f"{name} {t_start}-{t_finish}" for name in names]
+                    cell_text    = ', '.join(worker_parts)
+                    if notes_text:
+                        cell_text += f' - {notes_text}'
+
+                    start_idx  = self._slot_index(t_start, time_slots)
+                    finish_idx = self._slot_index(t_finish, time_slots)
+
+                    if start_idx is None or finish_idx is None:
+                        print(f"  ⚠ Bad times for {mname!r} ({t_start}–{t_finish})")
+                        continue
+
                     col_start = T_OFF + start_idx
                     col_end   = T_OFF + min(finish_idx, len(time_slots)) - 1
-                    # Fill and style each cell before merging
+
                     for idx in range(start_idx, min(finish_idx, len(time_slots))):
                         c = sheet.cell(row=dest_row, column=T_OFF + idx)
                         c.fill   = self.yellow_fill
                         c.border = self.thin_border
-                    # Merge the yellow block into one cell
+
                     if col_end > col_start:
-                        sheet.merge_cells(
-                            start_row=dest_row, start_column=col_start,
-                            end_row=dest_row,   end_column=col_end,
-                        )
-                    merged_cell = sheet.cell(row=dest_row, column=col_start)
+                        try:
+                            sheet.merge_cells(
+                                start_row=dest_row, start_column=col_start,
+                                end_row=dest_row,   end_column=col_end,
+                            )
+                        except Exception:
+                            pass  # overlapping ranges — skip merge, keep fill
+
+                    merged_cell           = sheet.cell(row=dest_row, column=col_start)
                     merged_cell.value     = cell_text
                     merged_cell.fill      = self.yellow_fill
                     merged_cell.alignment = self.left_align
                     merged_cell.border    = self.thin_border
                     print(f"  ✓ {mname!r}  {t_start}→{t_finish}  {cell_text!r}")
-                else:
-                    print(f"  ⚠ Bad times for {mname!r} ({t_start}–{t_finish})")
 
             sheet.row_dimensions[dest_row].height =                 main_sheet.row_dimensions[main_row].height or 15
             dest_row += 1
@@ -664,69 +671,52 @@ class ExcelHandlerGDrive:
             #   - Assigned time cells:   fill_type='solid', fgColor=FFFF00
             # So fill_type == 'solid' on a time-slot cell means it is yellow.
 
-            cell_text   = ''
-            text_col    = None   # index (0-based) of the cell holding the text
-
             time_cells = list(row[1:])   # skip col A
 
-            # Step 1: find the text cell
-            for col_idx, cell in enumerate(time_cells):
-                if cell.value and str(cell.value).strip():
-                    cell_text = str(cell.value).strip()
-                    text_col  = col_idx
-                    break
+            # Collect ALL text cells — each is the top-left of a separate merged block
+            text_blocks = [
+                (col_idx, str(cell.value).strip())
+                for col_idx, cell in enumerate(time_cells)
+                if cell.value is not None and str(cell.value).strip()
+            ]
 
-            if text_col is None:
+            if not text_blocks:
                 continue   # no text → unassigned row
 
-            # Step 2: find contiguous solid-fill block containing text_col
-            assigned_indices = []
-            for col_idx, cell in enumerate(time_cells):
-                if cell.fill and cell.fill.fill_type == 'solid':
-                    assigned_indices.append(col_idx)
-
-            if not assigned_indices:
-                # Fallback: just use the text cell alone
-                assigned_indices = [text_col]
-
-            print(f"  Row {mname!r}: slots {assigned_indices[0]}–{assigned_indices[-1]}, text={cell_text!r}")
-
-            # Derive time_start and time_finish from slot indices
-            first_slot = assigned_indices[0]
-            last_slot  = assigned_indices[-1]
-            time_start  = time_slots[first_slot] if first_slot < len(time_slots) else ''
-            time_finish = time_slots[last_slot + 1] if last_slot + 1 < len(time_slots) else time_slots[-1]
-
-            # Parse cell text: "Alice 07:00-15:00, Bob 08:00-16:00 - notes here"
-            # Legacy format (no per-worker times): "Worker1, Worker2 - notes here"
-            workers_str = cell_text
-            notes       = ''
-            if ' - ' in cell_text:
-                parts       = cell_text.split(' - ', 1)
-                workers_str = parts[0].strip()
-                notes       = parts[1].strip()
-
             _worker_time_re = re.compile(r'^(.*?)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$')
-            for part in workers_str.split(','):
-                part = part.strip()
-                if not part:
-                    continue
-                m = _worker_time_re.match(part)
-                if m:
-                    wname    = m.group(1).strip()
-                    w_start  = m.group(2)
-                    w_finish = m.group(3)
-                else:
-                    wname    = part
-                    w_start  = time_start
-                    w_finish = time_finish
-                schedule.append({
-                    'machine':     mname,
-                    'worker':      wname,
-                    'time_start':  w_start,
-                    'time_finish': w_finish,
-                    'notes':       notes,
-                })
+
+            for text_col, block_text in text_blocks:
+                print(f"  Row {mname!r}: slot {text_col}, text={block_text!r}")
+
+                # Parse notes
+                workers_str = block_text
+                notes       = ''
+                if ' - ' in block_text:
+                    parts       = block_text.split(' - ', 1)
+                    workers_str = parts[0].strip()
+                    notes       = parts[1].strip()
+
+                for part in workers_str.split(','):
+                    part = part.strip()
+                    if not part:
+                        continue
+                    m = _worker_time_re.match(part)
+                    if m:
+                        wname    = m.group(1).strip()
+                        w_start  = m.group(2)
+                        w_finish = m.group(3)
+                    else:
+                        # Legacy entry without embedded times — use slot position as fallback
+                        wname    = part
+                        w_start  = time_slots[text_col] if text_col < len(time_slots) else ''
+                        w_finish = ''
+                    schedule.append({
+                        'machine':     mname,
+                        'worker':      wname,
+                        'time_start':  w_start,
+                        'time_finish': w_finish,
+                        'notes':       notes,
+                    })
 
         print(f"  Loaded {len(schedule)} assignments from sheet {sheet_name!r}")
         return schedule
