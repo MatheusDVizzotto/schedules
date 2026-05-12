@@ -308,9 +308,8 @@ function snapshotAssignments() {
         });
 
         savedAssignments[machineRow] = {
-            notes:       notesEl ? notesEl.value : '',
-            workers:     checkedWorkers,
-            extraTimes:  (machineExtraTimes[machineRow] || []).map(function(t) { return Object.assign({}, t); })
+            notes:   notesEl ? notesEl.value : '',
+            workers: checkedWorkers
         };
     });
 }
