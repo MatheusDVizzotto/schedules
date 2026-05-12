@@ -351,9 +351,11 @@ function restoreAssignments() {
         // Restore per-worker extra time blocks
         saved.workers.forEach(function(w) {
             if (w.extraTimes && w.extraTimes.length) {
-                const key = row + '-' + w.col;
+                const key          = row + '-' + w.col;
+                const extraContainer = document.getElementById('worker-extra-times-' + key);
                 workerExtraTimes[key] = w.extraTimes.map(function(t) { return Object.assign({}, t); });
-                renderWorkerExtraTimes(row, w.col);
+                if (extraContainer) extraContainer.style.display = 'block';
+                renderWorkerExtraTimes(row, w.col);  // calls syncExtraBlockBadges internally
             }
         });
     });
@@ -405,14 +407,16 @@ function renderScheduleInterface() {
         // Worker checkbox listeners — show/hide per-worker time inputs
         card.querySelectorAll('.worker-checkbox').forEach(function(cb) {
             cb.addEventListener('change', function() {
-                const workerCol = parseInt(this.dataset.workerCol);
-                const machRow   = parseInt(this.dataset.machineRow);
-                const mach      = machines.find(function(m) { return m.row === machRow; });
-                const machName  = mach ? mach.name : '';
-                const timesDiv  = document.getElementById('worker-times-' + machRow + '-' + workerCol);
+                const workerCol      = parseInt(this.dataset.workerCol);
+                const machRow        = parseInt(this.dataset.machineRow);
+                const mach           = machines.find(function(m) { return m.row === machRow; });
+                const machName       = mach ? mach.name : '';
+                const timesDiv       = document.getElementById('worker-times-' + machRow + '-' + workerCol);
+                const extraContainer = document.getElementById('worker-extra-times-' + machRow + '-' + workerCol);
 
                 if (this.checked) {
-                    if (timesDiv) timesDiv.style.display = 'flex';
+                    if (timesDiv)       timesDiv.style.display       = 'flex';
+                    if (extraContainer) extraContainer.style.display = 'block';
                     const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const ts = tsEl ? tsEl.value : '--:--';
@@ -422,14 +426,16 @@ function renderScheduleInterface() {
                     if (!exists) {
                         workerAssignments[workerCol].push({ machineName: machName, timeStart: ts, timeFinish: tf });
                     }
+                    syncExtraBlockBadges(machRow, workerCol);
                 } else {
-                    if (timesDiv) timesDiv.style.display = 'none';
+                    if (timesDiv)       timesDiv.style.display       = 'none';
+                    if (extraContainer) extraContainer.style.display = 'none';
                     if (workerAssignments[workerCol]) {
                         workerAssignments[workerCol] = workerAssignments[workerCol].filter(function(a) { return a.machineName !== machName; });
                         if (!workerAssignments[workerCol].length) delete workerAssignments[workerCol];
                     }
+                    updateAssignmentBadges();
                 }
-                updateAssignmentBadges();
             });
         });
 
@@ -464,7 +470,7 @@ function renderScheduleInterface() {
                     timeStart:  defaultStart(mach ? mach.name : ''),
                     timeFinish: defaultFinish(mach ? mach.name : '')
                 });
-                renderWorkerExtraTimes(machRow, workerCol);
+                renderWorkerExtraTimes(machRow, workerCol);  // calls syncExtraBlockBadges internally
             });
         });
     });
@@ -497,8 +503,14 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
             '</button>';
 
         const inputs = row.querySelectorAll('input[type="time"]');
-        inputs[0].addEventListener('change', function() { workerExtraTimes[key][idx].timeStart  = this.value; });
-        inputs[1].addEventListener('change', function() { workerExtraTimes[key][idx].timeFinish = this.value; });
+        inputs[0].addEventListener('change', function() {
+            workerExtraTimes[key][idx].timeStart = this.value;
+            syncExtraBlockBadges(machineRow, workerCol);
+        });
+        inputs[1].addEventListener('change', function() {
+            workerExtraTimes[key][idx].timeFinish = this.value;
+            syncExtraBlockBadges(machineRow, workerCol);
+        });
         row.querySelector('button').addEventListener('click', function() {
             workerExtraTimes[key].splice(idx, 1);
             if (!workerExtraTimes[key].length) delete workerExtraTimes[key];
@@ -507,6 +519,34 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
 
         container.appendChild(row);
     });
+
+    syncExtraBlockBadges(machineRow, workerCol);
+}
+
+function syncExtraBlockBadges(machineRow, workerCol) {
+    const key      = machineRow + '-' + workerCol;
+    const mach     = machines.find(function(m) { return m.row === machineRow; });
+    if (!mach || !workerAssignments[workerCol]) return;
+    const machName = mach.name;
+
+    // Keep only the first (individual) entry for this machine, drop old extra ones
+    let kept = false;
+    workerAssignments[workerCol] = workerAssignments[workerCol].filter(function(a) {
+        if (a.machineName !== machName) return true;
+        if (!kept) { kept = true; return true; }
+        return false;
+    });
+
+    // Append a badge entry for each extra block
+    (workerExtraTimes[key] || []).forEach(function(block) {
+        workerAssignments[workerCol].push({
+            machineName: machName,
+            timeStart:   block.timeStart  || '--:--',
+            timeFinish:  block.timeFinish || '--:--'
+        });
+    });
+
+    updateAssignmentBadges();
 }
 
 function renderWorkersList(machine) {
@@ -639,11 +679,13 @@ function applyScheduleToInterface(schedule) {
 
             // Additional time entries → per-worker extra blocks
             if (times.length > 1) {
-                const key = machine.row + '-' + worker.col;
+                const key            = machine.row + '-' + worker.col;
+                const extraContainer = document.getElementById('worker-extra-times-' + key);
                 workerExtraTimes[key] = times.slice(1).map(function(t) {
                     return { timeStart: t.time_start, timeFinish: t.time_finish };
                 });
-                renderWorkerExtraTimes(machine.row, worker.col);
+                if (extraContainer) extraContainer.style.display = 'block';
+                renderWorkerExtraTimes(machine.row, worker.col);  // calls syncExtraBlockBadges internally
             }
         });
     });
