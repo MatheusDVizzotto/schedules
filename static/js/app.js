@@ -13,9 +13,8 @@ let workerAssignments = {};
 // Persisted assignment data keyed by machine row, survives Step 1 ↔ Step 2 transitions
 let savedAssignments = {};
 
-// Extra time blocks per machine row — apply to all assigned workers
-// { machineRow: [{timeStart, timeFinish}, ...] }
-let machineExtraTimes = {};
+// Extra time blocks per worker per machine: { 'machineRow-workerCol': [{timeStart, timeFinish}, ...] }
+let workerExtraTimes = {};
 
 function shortMachineName(name) {
     var s = name;
@@ -255,7 +254,8 @@ function showStepTwo() {
     Object.keys(savedAssignments).forEach(function(row) {
         if (!newSelectedRows.has(parseInt(row))) {
             delete savedAssignments[row];
-            delete machineExtraTimes[parseInt(row)];
+            const prefix = parseInt(row) + '-';
+            Object.keys(workerExtraTimes).forEach(function(k) { if (k.startsWith(prefix)) delete workerExtraTimes[k]; });
             const mach = machines.find(function(m) { return m.row === parseInt(row); });
             if (mach) {
                 Object.keys(workerAssignments).forEach(function(wc) {
@@ -298,7 +298,13 @@ function snapshotAssignments() {
             const wc  = parseInt(cb.dataset.workerCol);
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machineRow + '"][data-worker-col="' + wc + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machineRow + '"][data-worker-col="' + wc + '"]');
-            checkedWorkers.push({ col: wc, timeStart: tsEl ? tsEl.value : '', timeFinish: tfEl ? tfEl.value : '' });
+            const key = machineRow + '-' + wc;
+            checkedWorkers.push({
+                col:        wc,
+                timeStart:  tsEl ? tsEl.value : '',
+                timeFinish: tfEl ? tfEl.value : '',
+                extraTimes: (workerExtraTimes[key] || []).map(function(t) { return Object.assign({}, t); })
+            });
         });
 
         savedAssignments[machineRow] = {
@@ -342,15 +348,14 @@ function restoreAssignments() {
             }
         });
 
-        // Restore extra time blocks
-        if (saved.extraTimes && saved.extraTimes.length) {
-            machineExtraTimes[row] = saved.extraTimes.map(function(t) { return Object.assign({}, t); });
-            const container = document.getElementById('extra-times-container-' + row);
-            if (container) {
-                const card = container.closest('.machine-card');
-                if (card) renderExtraTimesSection(row, card);
+        // Restore per-worker extra time blocks
+        saved.workers.forEach(function(w) {
+            if (w.extraTimes && w.extraTimes.length) {
+                const key = row + '-' + w.col;
+                workerExtraTimes[key] = w.extraTimes.map(function(t) { return Object.assign({}, t); });
+                renderWorkerExtraTimes(row, w.col);
             }
-        }
+        });
     });
 
     updateAssignmentBadges();
@@ -387,11 +392,6 @@ function renderScheduleInterface() {
               '<div class="card-body">' +
                 '<h6 class="text-muted mb-3">Assign Workers</h6>' +
                 renderWorkersList(machine) +
-                '<div id="extra-times-container-' + machine.row + '" class="mt-2"></div>' +
-                '<button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-time-block"' +
-                        ' data-machine-row="' + machine.row + '">' +
-                  '<i class="fas fa-plus"></i> Add time block for all workers' +
-                '</button>' +
                 '<div class="mt-3">' +
                   '<label class="form-label small">Notes</label>' +
                   '<textarea class="form-control machine-notes" data-machine-row="' + machine.row + '"' +
@@ -452,57 +452,57 @@ function renderScheduleInterface() {
             });
         });
 
-        // Add time block button
-        card.querySelector('.add-time-block').addEventListener('click', function() {
-            const machRow = parseInt(this.dataset.machineRow);
-            const mach    = machines.find(function(m) { return m.row === machRow; });
-            if (!machineExtraTimes[machRow]) machineExtraTimes[machRow] = [];
-            machineExtraTimes[machRow].push({
-                timeStart:  defaultStart(mach ? mach.name : ''),
-                timeFinish: defaultFinish(mach ? mach.name : '')
+        // Per-worker "add time block" buttons
+        card.querySelectorAll('.add-worker-time-block').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                const machRow   = parseInt(this.dataset.machineRow);
+                const workerCol = parseInt(this.dataset.workerCol);
+                const mach      = machines.find(function(m) { return m.row === machRow; });
+                const key       = machRow + '-' + workerCol;
+                if (!workerExtraTimes[key]) workerExtraTimes[key] = [];
+                workerExtraTimes[key].push({
+                    timeStart:  defaultStart(mach ? mach.name : ''),
+                    timeFinish: defaultFinish(mach ? mach.name : '')
+                });
+                renderWorkerExtraTimes(machRow, workerCol);
             });
-            renderExtraTimesSection(machRow, card);
         });
     });
 }
 
-function renderExtraTimesSection(machineRow, card) {
-    const container = card.querySelector('#extra-times-container-' + machineRow);
+function renderWorkerExtraTimes(machineRow, workerCol) {
+    const key       = machineRow + '-' + workerCol;
+    const container = document.getElementById('worker-extra-times-' + key);
     if (!container) return;
     container.innerHTML = '';
 
-    const blocks = machineExtraTimes[machineRow] || [];
+    const blocks = workerExtraTimes[key] || [];
     blocks.forEach(function(block, idx) {
         const row = document.createElement('div');
-        row.className = 'd-flex align-items-center flex-wrap gap-2 mt-2 extra-time-block';
+        row.className = 'worker-times align-items-center gap-2 mt-1 ms-4 d-flex flex-wrap';
         row.innerHTML =
-            '<span class="badge bg-secondary">Block ' + (idx + 2) + '</span>' +
+            '<span class="badge bg-secondary">+' + (idx + 1) + '</span>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Start</label>' +
-              '<input type="time" class="form-control form-control-sm extra-time-start"' +
-                     ' data-machine-row="' + machineRow + '" data-idx="' + idx + '"' +
+              '<input type="time" class="form-control form-control-sm"' +
                      ' value="' + block.timeStart + '">' +
             '</div>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Finish</label>' +
-              '<input type="time" class="form-control form-control-sm extra-time-finish"' +
-                     ' data-machine-row="' + machineRow + '" data-idx="' + idx + '"' +
+              '<input type="time" class="form-control form-control-sm"' +
                      ' value="' + block.timeFinish + '">' +
             '</div>' +
-            '<button type="button" class="btn btn-sm btn-outline-danger remove-time-block">' +
+            '<button type="button" class="btn btn-sm btn-outline-danger">' +
               '<i class="fas fa-times"></i>' +
             '</button>';
 
-        row.querySelector('.extra-time-start').addEventListener('change', function() {
-            machineExtraTimes[machineRow][idx].timeStart = this.value;
-        });
-        row.querySelector('.extra-time-finish').addEventListener('change', function() {
-            machineExtraTimes[machineRow][idx].timeFinish = this.value;
-        });
-        row.querySelector('.remove-time-block').addEventListener('click', function() {
-            machineExtraTimes[machineRow].splice(idx, 1);
-            if (!machineExtraTimes[machineRow].length) delete machineExtraTimes[machineRow];
-            renderExtraTimesSection(machineRow, card);
+        const inputs = row.querySelectorAll('input[type="time"]');
+        inputs[0].addEventListener('change', function() { workerExtraTimes[key][idx].timeStart  = this.value; });
+        inputs[1].addEventListener('change', function() { workerExtraTimes[key][idx].timeFinish = this.value; });
+        row.querySelector('button').addEventListener('click', function() {
+            workerExtraTimes[key].splice(idx, 1);
+            if (!workerExtraTimes[key].length) delete workerExtraTimes[key];
+            renderWorkerExtraTimes(machineRow, workerCol);
         });
 
         container.appendChild(row);
@@ -532,7 +532,7 @@ function renderWorkersList(machine) {
                 '</div>' +
                 '<span class="' + badgeCls + '">' + display + '</span>' +
               '</div>' +
-              '<div class="worker-times align-items-center gap-3 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
+              '<div class="worker-times align-items-center gap-2 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Start</label>' +
                   '<input type="time" class="form-control form-control-sm time-start-worker"' +
@@ -547,7 +547,13 @@ function renderWorkersList(machine) {
                          ' data-worker-col="' + worker.col + '"' +
                          ' value="' + defEnd + '">' +
                 '</div>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary add-worker-time-block"' +
+                        ' data-machine-row="' + machine.row + '" data-worker-col="' + worker.col + '"' +
+                        ' title="Add another time block for this worker">' +
+                  '<i class="fas fa-plus"></i>' +
+                '</button>' +
               '</div>' +
+              '<div id="worker-extra-times-' + machine.row + '-' + worker.col + '"></div>' +
             '</div>';
     });
     html += '</div>';
@@ -588,9 +594,9 @@ function applyScheduleToInterface(schedule) {
     updateProceedButton();
 
     // Clear any previous saved state and start fresh from the loaded data
-    savedAssignments  = {};
+    savedAssignments = {};
     workerAssignments = {};
-    machineExtraTimes = {};
+    workerExtraTimes  = {};
 
     // Move to Step 2 (renders cards, then we fill them below)
     showStepTwo();
@@ -612,8 +618,6 @@ function applyScheduleToInterface(schedule) {
         const notesEl = document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]');
         if (notesEl) notesEl.value = entry.notes;
 
-        const extraTimesSet = [];
-
         Object.keys(entry.workerEntries).forEach(function(workerName) {
             const times  = entry.workerEntries[workerName];
             const worker = workers.find(function(wk) { return wk.name === workerName; });
@@ -633,22 +637,15 @@ function applyScheduleToInterface(schedule) {
             if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
             workerAssignments[worker.col].push({ machineName: machineName, timeStart: first.time_start || '--:--', timeFinish: first.time_finish || '--:--' });
 
-            // Additional time entries → machine-level extra blocks
-            for (var i = 1; i < times.length; i++) {
-                const t = times[i];
-                const dup = extraTimesSet.find(function(e) { return e.timeStart === t.time_start && e.timeFinish === t.time_finish; });
-                if (!dup) extraTimesSet.push({ timeStart: t.time_start, timeFinish: t.time_finish });
+            // Additional time entries → per-worker extra blocks
+            if (times.length > 1) {
+                const key = machine.row + '-' + worker.col;
+                workerExtraTimes[key] = times.slice(1).map(function(t) {
+                    return { timeStart: t.time_start, timeFinish: t.time_finish };
+                });
+                renderWorkerExtraTimes(machine.row, worker.col);
             }
         });
-
-        if (extraTimesSet.length) {
-            machineExtraTimes[machine.row] = extraTimesSet;
-            const container = document.getElementById('extra-times-container-' + machine.row);
-            if (container) {
-                const card = container.closest('.machine-card');
-                if (card) renderExtraTimesSection(machine.row, card);
-            }
-        }
     });
 
     updateAssignmentBadges();
@@ -669,8 +666,7 @@ async function saveSchedule() {
 
         if (!checked.length) return;   // no workers — skip silently
 
-        const missingTimes    = [];
-        const assignedWorkers = [];
+        const missingTimes = [];
         checked.forEach(function(cb) {
             const wc     = parseInt(cb.dataset.workerCol);
             const worker = workers.find(function(w) { return w.col === wc; });
@@ -681,14 +677,12 @@ async function saveSchedule() {
             const tf = tfEl ? tfEl.value : '';
             if (!ts || !tf) { missingTimes.push(worker.name); return; }
             scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: ts, time_finish: tf, notes: notes });
-            assignedWorkers.push({ worker: worker, wc: wc });
-        });
 
-        // Extra time blocks — emit one entry per assigned worker per block
-        (machineExtraTimes[machine.row] || []).forEach(function(block) {
-            if (!block.timeStart || !block.timeFinish) return;
-            assignedWorkers.forEach(function(aw) {
-                scheduleData.push({ machine: machine.name, worker: aw.worker.name, role: getProficiency(machine.row, aw.wc), time_start: block.timeStart, time_finish: block.timeFinish, notes: notes });
+            // Extra time blocks for this specific worker
+            const key = machine.row + '-' + wc;
+            (workerExtraTimes[key] || []).forEach(function(block) {
+                if (!block.timeStart || !block.timeFinish) return;
+                scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: block.timeStart, time_finish: block.timeFinish, notes: notes });
             });
         });
 
