@@ -8,6 +8,7 @@ The workbook layout assumed:
   - Yellow-filled cells : schedule assignments written by this app
 """
 import io
+import re
 from collections import defaultdict
 from datetime import datetime, timedelta
 
@@ -423,10 +424,9 @@ class ExcelHandlerGDrive:
 
         # ── Build assignment lookup: machine_name → merged single entry ────
         # All workers on the same machine share one row.
-        # Workers concatenated: "Alice, Bob"
-        # Notes concatenated:   "Note A | Note B"
-        # Time range: earliest start → latest finish across all workers
-        machine_entries = {}   # mname → {workers, notes, time_start, time_finish}
+        # Per-worker times are encoded in the cell text: "Alice 07:00-15:00, Bob 08:00-16:00"
+        # Yellow block spans earliest start → latest finish across all workers.
+        machine_entries = {}   # mname → {worker_entries, notes, time_start, time_finish}
         for entry in schedule_data:
             mname      = str(entry.get('machine', '')).strip()
             worker     = str(entry.get('worker',  '')).strip()
@@ -436,19 +436,19 @@ class ExcelHandlerGDrive:
 
             if mname not in machine_entries:
                 machine_entries[mname] = {
-                    'workers':    [],
-                    'notes':      [],
-                    'time_start': t_start,
-                    'time_finish': t_finish,
+                    'worker_entries': [],
+                    'notes':          [],
+                    'time_start':     t_start,
+                    'time_finish':    t_finish,
                 }
 
             e = machine_entries[mname]
-            if worker and worker not in e['workers']:
-                e['workers'].append(worker)
+            if worker:
+                e['worker_entries'].append({'name': worker, 'time_start': t_start, 'time_finish': t_finish})
             if note and note not in e['notes']:
                 e['notes'].append(note)
 
-            # Expand time range to cover all workers
+            # Expand merged time range to cover all workers
             if t_start and (not e['time_start'] or t_start < e['time_start']):
                 e['time_start'] = t_start
             if t_finish and (not e['time_finish'] or t_finish > e['time_finish']):
@@ -532,9 +532,13 @@ class ExcelHandlerGDrive:
                 c.border = self.thin_border
 
             # Paint yellow for assigned time range
-            # Cell text: "Worker1, Worker2 - notes" (notes omitted if empty)
+            # Cell text: "Alice 07:00-15:00, Bob 08:00-16:00 - notes"
             if entry:
-                workers_text = ', '.join(entry['workers'])
+                worker_parts = [
+                    f"{we['name']} {we['time_start']}-{we['time_finish']}"
+                    for we in entry['worker_entries']
+                ]
+                workers_text = ', '.join(worker_parts)
                 notes_text   = ' | '.join(entry['notes']) if entry['notes'] else ''
                 cell_text    = workers_text
                 if notes_text:
@@ -680,7 +684,8 @@ class ExcelHandlerGDrive:
             time_start  = time_slots[first_slot] if first_slot < len(time_slots) else ''
             time_finish = time_slots[last_slot + 1] if last_slot + 1 < len(time_slots) else time_slots[-1]
 
-            # Parse cell text: "Worker1, Worker2 - notes here"
+            # Parse cell text: "Alice 07:00-15:00, Bob 08:00-16:00 - notes here"
+            # Legacy format (no per-worker times): "Worker1, Worker2 - notes here"
             workers_str = cell_text
             notes       = ''
             if ' - ' in cell_text:
@@ -688,15 +693,26 @@ class ExcelHandlerGDrive:
                 workers_str = parts[0].strip()
                 notes       = parts[1].strip()
 
-            # Each worker gets its own entry so applyScheduleToInterface can tick them
-            worker_names = [w.strip() for w in workers_str.split(',') if w.strip()]
-            for worker_name in worker_names:
+            _worker_time_re = re.compile(r'^(.*?)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$')
+            for part in workers_str.split(','):
+                part = part.strip()
+                if not part:
+                    continue
+                m = _worker_time_re.match(part)
+                if m:
+                    wname    = m.group(1).strip()
+                    w_start  = m.group(2)
+                    w_finish = m.group(3)
+                else:
+                    wname    = part
+                    w_start  = time_start
+                    w_finish = time_finish
                 schedule.append({
-                    'machine':    mname,
-                    'worker':     worker_name,
-                    'time_start': time_start,
-                    'time_finish': time_finish,
-                    'notes':      notes,
+                    'machine':     mname,
+                    'worker':      wname,
+                    'time_start':  w_start,
+                    'time_finish': w_finish,
+                    'notes':       notes,
                 })
 
         print(f"  Loaded {len(schedule)} assignments from sheet {sheet_name!r}")
