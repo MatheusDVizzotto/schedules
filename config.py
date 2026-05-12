@@ -13,7 +13,7 @@ import os
 # GOOGLE DRIVE CONFIGURATION
 # ============================================================
 
-GOOGLE_DRIVE_FILE_ID   = os.environ.get('GOOGLE_DRIVE_FILE_ID', '13KZdibOnzP_iv7rERpvywVifadQ9faVa')
+GOOGLE_DRIVE_FILE_ID   = os.environ.get('TEST_FILE_ID') or os.environ.get('GOOGLE_DRIVE_FILE_ID', '13KZdibOnzP_iv7rERpvywVifadQ9faVa')
 GOOGLE_DRIVE_FILENAME  = os.environ.get('GOOGLE_DRIVE_FILENAME', '1. General Schedule.xlsx')
 USE_FILE_ID            = True
 
