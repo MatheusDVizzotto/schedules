@@ -166,6 +166,14 @@ input[type="time"] { font-size: 0.95rem; }
 }
 .worker-item:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.12); }
 
+.worker-times {
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.worker-times input[type="time"] {
+    width: 120px;
+}
+
 /* ── Alerts ───────────────────────────────────────────────────── */
 [data-theme="dark"] .alert-info {
     background-color: #1a2e44;

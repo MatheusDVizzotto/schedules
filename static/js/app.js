@@ -288,27 +288,24 @@ function showStepOne() {
 }
 
 function snapshotAssignments() {
-    // Save current form state into savedAssignments keyed by machine row
     selectedMachineRows.forEach(function(machineRow) {
-        const tsEl    = document.querySelector('.time-start[data-machine-row="'    + machineRow + '"]');
-        const tfEl    = document.querySelector('.time-finish[data-machine-row="'   + machineRow + '"]');
         const notesEl = document.querySelector('.machine-notes[data-machine-row="' + machineRow + '"]');
         const checkedWorkers = [];
         document.querySelectorAll('.worker-checkbox[data-machine-row="' + machineRow + '"]:checked').forEach(function(cb) {
-            checkedWorkers.push(parseInt(cb.dataset.workerCol));
+            const wc  = parseInt(cb.dataset.workerCol);
+            const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machineRow + '"][data-worker-col="' + wc + '"]');
+            const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machineRow + '"][data-worker-col="' + wc + '"]');
+            checkedWorkers.push({ col: wc, timeStart: tsEl ? tsEl.value : '', timeFinish: tfEl ? tfEl.value : '' });
         });
 
         savedAssignments[machineRow] = {
-            timeStart:  tsEl    ? tsEl.value    : '',
-            timeFinish: tfEl    ? tfEl.value    : '',
-            notes:      notesEl ? notesEl.value : '',
-            workers:    checkedWorkers
+            notes:   notesEl ? notesEl.value : '',
+            workers: checkedWorkers
         };
     });
 }
 
 function restoreAssignments() {
-    // Re-apply savedAssignments into the freshly rendered cards
     workerAssignments = {};
 
     Object.keys(savedAssignments).forEach(function(machineRow) {
@@ -317,27 +314,27 @@ function restoreAssignments() {
         const mach    = machines.find(function(m) { return m.row === row; });
         if (!mach) return;
 
-        const tsEl    = document.querySelector('.time-start[data-machine-row="'    + row + '"]');
-        const tfEl    = document.querySelector('.time-finish[data-machine-row="'   + row + '"]');
         const notesEl = document.querySelector('.machine-notes[data-machine-row="' + row + '"]');
-
-        if (tsEl)    tsEl.value    = saved.timeStart  || defaultStart(mach.name);
-        if (tfEl)    tfEl.value    = saved.timeFinish || defaultFinish(mach.name);
         if (notesEl) notesEl.value = saved.notes;
 
-        saved.workers.forEach(function(workerCol) {
-            const cb = document.getElementById('worker-' + row + '-' + workerCol);
-            if (cb) {
-                cb.checked = true;
-                if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
-                const exists = workerAssignments[workerCol].find(function(a) { return a.machineName === mach.name; });
-                if (!exists) {
-                    workerAssignments[workerCol].push({
-                        machineName: mach.name,
-                        timeStart:   saved.timeStart  || '--:--',
-                        timeFinish:  saved.timeFinish || '--:--'
-                    });
-                }
+        saved.workers.forEach(function(w) {
+            const cb = document.getElementById('worker-' + row + '-' + w.col);
+            if (!cb) return;
+            cb.checked = true;
+            const timesDiv = document.getElementById('worker-times-' + row + '-' + w.col);
+            if (timesDiv) timesDiv.style.display = 'flex';
+            const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
+            const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
+            if (tsEl) tsEl.value = w.timeStart  || defaultStart(mach.name);
+            if (tfEl) tfEl.value = w.timeFinish || defaultFinish(mach.name);
+            if (!workerAssignments[w.col]) workerAssignments[w.col] = [];
+            const exists = workerAssignments[w.col].find(function(a) { return a.machineName === mach.name; });
+            if (!exists) {
+                workerAssignments[w.col].push({
+                    machineName: mach.name,
+                    timeStart:   w.timeStart  || '--:--',
+                    timeFinish:  w.timeFinish || '--:--'
+                });
             }
         });
     });
@@ -374,50 +371,40 @@ function renderScheduleInterface() {
                 '<strong>' + escapeHtml(shortMachineName(machine.name)) + '</strong>' +
               '</div>' +
               '<div class="card-body">' +
-                '<div class="row">' +
-                  '<div class="col-md-8">' +
-                    '<h6 class="text-muted mb-3">Assign Workers</h6>' +
-                    renderWorkersList(machine) +
-                  '</div>' +
-                  '<div class="col-md-4">' +
-                    '<h6 class="text-muted mb-3">Time & Notes</h6>' +
-                    '<div class="mb-2">' +
-                      '<label class="form-label small">Start Time</label>' +
-                      '<input type="time" class="form-control time-start" data-machine-row="' + machine.row + '" value="' + defaultStart(machine.name) + '">' +
-                    '</div>' +
-                    '<div class="mb-2">' +
-                      '<label class="form-label small">Finish Time</label>' +
-                      '<input type="time" class="form-control time-finish" data-machine-row="' + machine.row + '" value="' + defaultFinish(machine.name) + '">' +
-                    '</div>' +
-                    '<div class="mb-2">' +
-                      '<label class="form-label small">Notes</label>' +
-                      '<textarea class="form-control machine-notes" data-machine-row="' + machine.row + '"' +
-                               ' rows="2" placeholder="Optional notes..."></textarea>' +
-                    '</div>' +
-                  '</div>' +
+                '<h6 class="text-muted mb-3">Assign Workers</h6>' +
+                renderWorkersList(machine) +
+                '<div class="mt-3">' +
+                  '<label class="form-label small">Notes</label>' +
+                  '<textarea class="form-control machine-notes" data-machine-row="' + machine.row + '"' +
+                           ' rows="2" placeholder="Optional notes..."></textarea>' +
                 '</div>' +
               '</div>' +
             '</div>';
 
         container.appendChild(card);
 
-        // Worker checkbox listeners
+        // Worker checkbox listeners — show/hide per-worker time inputs
         card.querySelectorAll('.worker-checkbox').forEach(function(cb) {
             cb.addEventListener('change', function() {
                 const workerCol = parseInt(this.dataset.workerCol);
                 const machRow   = parseInt(this.dataset.machineRow);
                 const mach      = machines.find(function(m) { return m.row === machRow; });
                 const machName  = mach ? mach.name : '';
+                const timesDiv  = document.getElementById('worker-times-' + machRow + '-' + workerCol);
 
                 if (this.checked) {
-                    const ts = document.querySelector('.time-start[data-machine-row="'  + machRow + '"]').value;
-                    const tf = document.querySelector('.time-finish[data-machine-row="' + machRow + '"]').value;
+                    if (timesDiv) timesDiv.style.display = 'flex';
+                    const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                    const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                    const ts = tsEl ? tsEl.value : '--:--';
+                    const tf = tfEl ? tfEl.value : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
                     const exists = workerAssignments[workerCol].find(function(a) { return a.machineName === machName; });
                     if (!exists) {
-                        workerAssignments[workerCol].push({ machineName: machName, timeStart: ts || '--:--', timeFinish: tf || '--:--' });
+                        workerAssignments[workerCol].push({ machineName: machName, timeStart: ts, timeFinish: tf });
                     }
                 } else {
+                    if (timesDiv) timesDiv.style.display = 'none';
                     if (workerAssignments[workerCol]) {
                         workerAssignments[workerCol] = workerAssignments[workerCol].filter(function(a) { return a.machineName !== machName; });
                         if (!workerAssignments[workerCol].length) delete workerAssignments[workerCol];
@@ -427,20 +414,21 @@ function renderScheduleInterface() {
             });
         });
 
-        // Time input listeners — update badge times
-        card.querySelectorAll('.time-start, .time-finish').forEach(function(input) {
+        // Per-worker time input listeners — update badge times
+        card.querySelectorAll('.time-start-worker, .time-finish-worker').forEach(function(input) {
             input.addEventListener('change', function() {
-                const machRow  = parseInt(this.dataset.machineRow);
-                const mach     = machines.find(function(m) { return m.row === machRow; });
-                const machName = mach ? mach.name : '';
-                const ts       = document.querySelector('.time-start[data-machine-row="'  + machRow + '"]').value;
-                const tf       = document.querySelector('.time-finish[data-machine-row="' + machRow + '"]').value;
-                card.querySelectorAll('.worker-checkbox:checked').forEach(function(cb) {
-                    const wc = parseInt(cb.dataset.workerCol);
-                    if (!workerAssignments[wc]) workerAssignments[wc] = [];
-                    const a = workerAssignments[wc].find(function(x) { return x.machineName === machName; });
+                const machRow   = parseInt(this.dataset.machineRow);
+                const workerCol = parseInt(this.dataset.workerCol);
+                const mach      = machines.find(function(m) { return m.row === machRow; });
+                const machName  = mach ? mach.name : '';
+                const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                const ts = tsEl ? tsEl.value : '--:--';
+                const tf = tfEl ? tfEl.value : '--:--';
+                if (workerAssignments[workerCol]) {
+                    const a = workerAssignments[workerCol].find(function(x) { return x.machineName === machName; });
                     if (a) { a.timeStart = ts || '--:--'; a.timeFinish = tf || '--:--'; }
-                });
+                }
                 updateAssignmentBadges();
             });
         });
@@ -450,22 +438,42 @@ function renderScheduleInterface() {
 function renderWorkersList(machine) {
     let html = '<div class="worker-list">';
     workers.forEach(function(worker) {
-        const prof      = getProficiency(machine.row, worker.col);
-        const display   = getProficiencyDisplay(prof);
-        const badgeCls  = getProficiencyBadgeClass(prof);
+        const prof     = getProficiency(machine.row, worker.col);
+        const display  = getProficiencyDisplay(prof);
+        const badgeCls = getProficiencyBadgeClass(prof);
+        const defStart = defaultStart(machine.name);
+        const defEnd   = defaultFinish(machine.name);
         html +=
-            '<div class="worker-item mb-2 d-flex align-items-center justify-content-between">' +
-              '<div class="form-check">' +
-                '<input class="form-check-input worker-checkbox" type="checkbox"' +
-                       ' id="worker-' + machine.row + '-' + worker.col + '"' +
-                       ' data-machine-row="' + machine.row + '"' +
-                       ' data-worker-col="' + worker.col + '">' +
-                '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
-                  '<strong>' + escapeHtml(worker.name) + '</strong>' +
-                  '<span id="assignment-badge-' + worker.col + '"></span>' +
-                '</label>' +
+            '<div class="worker-item mb-2">' +
+              '<div class="d-flex align-items-center justify-content-between">' +
+                '<div class="form-check">' +
+                  '<input class="form-check-input worker-checkbox" type="checkbox"' +
+                         ' id="worker-' + machine.row + '-' + worker.col + '"' +
+                         ' data-machine-row="' + machine.row + '"' +
+                         ' data-worker-col="' + worker.col + '">' +
+                  '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
+                    '<strong>' + escapeHtml(worker.name) + '</strong>' +
+                    '<span id="assignment-badge-' + worker.col + '"></span>' +
+                  '</label>' +
+                '</div>' +
+                '<span class="' + badgeCls + '">' + display + '</span>' +
               '</div>' +
-              '<span class="' + badgeCls + '">' + display + '</span>' +
+              '<div class="worker-times align-items-center gap-3 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
+                '<div class="d-flex align-items-center gap-1">' +
+                  '<label class="form-label small mb-0 text-muted">Start</label>' +
+                  '<input type="time" class="form-control form-control-sm time-start-worker"' +
+                         ' data-machine-row="' + machine.row + '"' +
+                         ' data-worker-col="' + worker.col + '"' +
+                         ' value="' + defStart + '">' +
+                '</div>' +
+                '<div class="d-flex align-items-center gap-1">' +
+                  '<label class="form-label small mb-0 text-muted">Finish</label>' +
+                  '<input type="time" class="form-control form-control-sm time-finish-worker"' +
+                         ' data-machine-row="' + machine.row + '"' +
+                         ' data-worker-col="' + worker.col + '"' +
+                         ' value="' + defEnd + '">' +
+                '</div>' +
+              '</div>' +
             '</div>';
     });
     html += '</div>';
@@ -513,34 +521,32 @@ function applyScheduleToInterface(schedule) {
     showStepTwo();
     const byMachine = {};
     schedule.forEach(function(entry) {
-        if (!byMachine[entry.machine]) {
-            byMachine[entry.machine] = { workers: [], time_start: entry.time_start || '', time_finish: entry.time_finish || '', notes: entry.notes || '' };
-        }
-        byMachine[entry.machine].workers.push(entry.worker);
+        if (!byMachine[entry.machine]) byMachine[entry.machine] = { workers: [], notes: entry.notes || '' };
+        byMachine[entry.machine].workers.push({ name: entry.worker, time_start: entry.time_start || '', time_finish: entry.time_finish || '' });
     });
 
     Object.keys(byMachine).forEach(function(machineName) {
         const machine = machines.find(function(m) { return m.name === machineName; });
         if (!machine) return;
 
-        const entry = byMachine[machineName];
-        const startEl  = document.querySelector('.time-start[data-machine-row="'   + machine.row + '"]');
-        const finishEl = document.querySelector('.time-finish[data-machine-row="'  + machine.row + '"]');
-        const notesEl  = document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]');
+        const entry   = byMachine[machineName];
+        const notesEl = document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]');
+        if (notesEl) notesEl.value = entry.notes;
 
-        if (startEl)  startEl.value  = entry.time_start;
-        if (finishEl) finishEl.value = entry.time_finish;
-        if (notesEl)  notesEl.value  = entry.notes;
-
-        entry.workers.forEach(function(workerName) {
-            const worker   = workers.find(function(w) { return w.name === workerName; });
+        entry.workers.forEach(function(w) {
+            const worker = workers.find(function(wk) { return wk.name === w.name; });
             if (!worker) return;
             const workerCb = document.getElementById('worker-' + machine.row + '-' + worker.col);
-            if (workerCb) {
-                workerCb.checked = true;
-                if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
-                workerAssignments[worker.col].push({ machineName: machineName, timeStart: entry.time_start || '--:--', timeFinish: entry.time_finish || '--:--' });
-            }
+            if (!workerCb) return;
+            workerCb.checked = true;
+            const timesDiv = document.getElementById('worker-times-' + machine.row + '-' + worker.col);
+            if (timesDiv) timesDiv.style.display = 'flex';
+            const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
+            const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
+            if (tsEl) tsEl.value = w.time_start;
+            if (tfEl) tfEl.value = w.time_finish;
+            if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
+            workerAssignments[worker.col].push({ machineName: machineName, timeStart: w.time_start || '--:--', timeFinish: w.time_finish || '--:--' });
         });
     });
 
@@ -557,25 +563,24 @@ async function saveSchedule() {
     const errors       = [];
 
     machines.filter(function(m) { return selectedMachineRows.has(m.row); }).forEach(function(machine) {
-        const ts    = document.querySelector('.time-start[data-machine-row="'   + machine.row + '"]').value;
-        const tf    = document.querySelector('.time-finish[data-machine-row="'  + machine.row + '"]').value;
-        const notes = (document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]').value || '').trim();
-
+        const notes   = (document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]').value || '').trim();
         const checked = document.querySelectorAll('.worker-checkbox[data-machine-row="' + machine.row + '"]:checked');
 
-        if (!checked.length) return;   // no workers — skip silently (machine won't appear in sheet)
+        if (!checked.length) return;   // no workers — skip silently
 
-        if (!ts || !tf) {
-            errors.push(machine.name + ': set start and finish times');
-            return;
-        }
-
+        const missingTimes = [];
         checked.forEach(function(cb) {
             const wc     = parseInt(cb.dataset.workerCol);
             const worker = workers.find(function(w) { return w.col === wc; });
             if (!worker) return;
+            const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
+            const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
+            const ts = tsEl ? tsEl.value : '';
+            const tf = tfEl ? tfEl.value : '';
+            if (!ts || !tf) { missingTimes.push(worker.name); return; }
             scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: ts, time_finish: tf, notes: notes });
         });
+        if (missingTimes.length) errors.push(machine.name + ': set times for ' + missingTimes.join(', '));
     });
 
     if (errors.length) { alert('Please fix:\n\n' + errors.join('\n')); return; }
