@@ -551,12 +551,24 @@ class ExcelHandlerGDrive:
                 finish_idx = self._slot_index(t_finish, time_slots)
 
                 if start_idx is not None and finish_idx is not None:
+                    col_start = T_OFF + start_idx
+                    col_end   = T_OFF + min(finish_idx, len(time_slots)) - 1
+                    # Fill and style each cell before merging
                     for idx in range(start_idx, min(finish_idx, len(time_slots))):
                         c = sheet.cell(row=dest_row, column=T_OFF + idx)
-                        c.value     = cell_text if idx == start_idx else ''
-                        c.fill      = self.yellow_fill
-                        c.alignment = self.left_align if idx == start_idx else self.center_align
-                        c.border    = self.thin_border
+                        c.fill   = self.yellow_fill
+                        c.border = self.thin_border
+                    # Merge the yellow block into one cell
+                    if col_end > col_start:
+                        sheet.merge_cells(
+                            start_row=dest_row, start_column=col_start,
+                            end_row=dest_row,   end_column=col_end,
+                        )
+                    merged_cell = sheet.cell(row=dest_row, column=col_start)
+                    merged_cell.value     = cell_text
+                    merged_cell.fill      = self.yellow_fill
+                    merged_cell.alignment = self.left_align
+                    merged_cell.border    = self.thin_border
                     print(f"  ✓ {mname!r}  {t_start}→{t_finish}  {cell_text!r}")
                 else:
                     print(f"  ⚠ Bad times for {mname!r} ({t_start}–{t_finish})")
