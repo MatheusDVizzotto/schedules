@@ -11,8 +11,11 @@ let selectedMachineRows = new Set();
 let workerAssignments = {};
 
 // Persisted assignment data keyed by machine row, survives Step 1 ↔ Step 2 transitions
-// { machineRow: { timeStart, timeFinish, notes, workers: [workerCol, ...] } }
 let savedAssignments = {};
+
+// Extra time blocks per machine row — apply to all assigned workers
+// { machineRow: [{timeStart, timeFinish}, ...] }
+let machineExtraTimes = {};
 
 function shortMachineName(name) {
     var s = name;
@@ -252,7 +255,7 @@ function showStepTwo() {
     Object.keys(savedAssignments).forEach(function(row) {
         if (!newSelectedRows.has(parseInt(row))) {
             delete savedAssignments[row];
-            // Also remove from workerAssignments any badge entries for this machine
+            delete machineExtraTimes[parseInt(row)];
             const mach = machines.find(function(m) { return m.row === parseInt(row); });
             if (mach) {
                 Object.keys(workerAssignments).forEach(function(wc) {
@@ -299,8 +302,9 @@ function snapshotAssignments() {
         });
 
         savedAssignments[machineRow] = {
-            notes:   notesEl ? notesEl.value : '',
-            workers: checkedWorkers
+            notes:       notesEl ? notesEl.value : '',
+            workers:     checkedWorkers,
+            extraTimes:  (machineExtraTimes[machineRow] || []).map(function(t) { return Object.assign({}, t); })
         };
     });
 }
@@ -337,6 +341,16 @@ function restoreAssignments() {
                 });
             }
         });
+
+        // Restore extra time blocks
+        if (saved.extraTimes && saved.extraTimes.length) {
+            machineExtraTimes[row] = saved.extraTimes.map(function(t) { return Object.assign({}, t); });
+            const container = document.getElementById('extra-times-container-' + row);
+            if (container) {
+                const card = container.closest('.machine-card');
+                if (card) renderExtraTimesSection(row, card);
+            }
+        }
     });
 
     updateAssignmentBadges();
@@ -373,6 +387,11 @@ function renderScheduleInterface() {
               '<div class="card-body">' +
                 '<h6 class="text-muted mb-3">Assign Workers</h6>' +
                 renderWorkersList(machine) +
+                '<div id="extra-times-container-' + machine.row + '" class="mt-2"></div>' +
+                '<button type="button" class="btn btn-sm btn-outline-secondary mt-2 add-time-block"' +
+                        ' data-machine-row="' + machine.row + '">' +
+                  '<i class="fas fa-plus"></i> Add time block for all workers' +
+                '</button>' +
                 '<div class="mt-3">' +
                   '<label class="form-label small">Notes</label>' +
                   '<textarea class="form-control machine-notes" data-machine-row="' + machine.row + '"' +
@@ -432,6 +451,61 @@ function renderScheduleInterface() {
                 updateAssignmentBadges();
             });
         });
+
+        // Add time block button
+        card.querySelector('.add-time-block').addEventListener('click', function() {
+            const machRow = parseInt(this.dataset.machineRow);
+            const mach    = machines.find(function(m) { return m.row === machRow; });
+            if (!machineExtraTimes[machRow]) machineExtraTimes[machRow] = [];
+            machineExtraTimes[machRow].push({
+                timeStart:  defaultStart(mach ? mach.name : ''),
+                timeFinish: defaultFinish(mach ? mach.name : '')
+            });
+            renderExtraTimesSection(machRow, card);
+        });
+    });
+}
+
+function renderExtraTimesSection(machineRow, card) {
+    const container = card.querySelector('#extra-times-container-' + machineRow);
+    if (!container) return;
+    container.innerHTML = '';
+
+    const blocks = machineExtraTimes[machineRow] || [];
+    blocks.forEach(function(block, idx) {
+        const row = document.createElement('div');
+        row.className = 'd-flex align-items-center flex-wrap gap-2 mt-2 extra-time-block';
+        row.innerHTML =
+            '<span class="badge bg-secondary">Block ' + (idx + 2) + '</span>' +
+            '<div class="d-flex align-items-center gap-1">' +
+              '<label class="form-label small mb-0 text-muted">Start</label>' +
+              '<input type="time" class="form-control form-control-sm extra-time-start"' +
+                     ' data-machine-row="' + machineRow + '" data-idx="' + idx + '"' +
+                     ' value="' + block.timeStart + '">' +
+            '</div>' +
+            '<div class="d-flex align-items-center gap-1">' +
+              '<label class="form-label small mb-0 text-muted">Finish</label>' +
+              '<input type="time" class="form-control form-control-sm extra-time-finish"' +
+                     ' data-machine-row="' + machineRow + '" data-idx="' + idx + '"' +
+                     ' value="' + block.timeFinish + '">' +
+            '</div>' +
+            '<button type="button" class="btn btn-sm btn-outline-danger remove-time-block">' +
+              '<i class="fas fa-times"></i>' +
+            '</button>';
+
+        row.querySelector('.extra-time-start').addEventListener('change', function() {
+            machineExtraTimes[machineRow][idx].timeStart = this.value;
+        });
+        row.querySelector('.extra-time-finish').addEventListener('change', function() {
+            machineExtraTimes[machineRow][idx].timeFinish = this.value;
+        });
+        row.querySelector('.remove-time-block').addEventListener('click', function() {
+            machineExtraTimes[machineRow].splice(idx, 1);
+            if (!machineExtraTimes[machineRow].length) delete machineExtraTimes[machineRow];
+            renderExtraTimesSection(machineRow, card);
+        });
+
+        container.appendChild(row);
     });
 }
 
@@ -516,13 +590,18 @@ function applyScheduleToInterface(schedule) {
     // Clear any previous saved state and start fresh from the loaded data
     savedAssignments  = {};
     workerAssignments = {};
+    machineExtraTimes = {};
 
     // Move to Step 2 (renders cards, then we fill them below)
     showStepTwo();
+
+    // Group by machine; workers may appear multiple times (extra time blocks)
     const byMachine = {};
     schedule.forEach(function(entry) {
-        if (!byMachine[entry.machine]) byMachine[entry.machine] = { workers: [], notes: entry.notes || '' };
-        byMachine[entry.machine].workers.push({ name: entry.worker, time_start: entry.time_start || '', time_finish: entry.time_finish || '' });
+        if (!byMachine[entry.machine]) byMachine[entry.machine] = { workerEntries: {}, notes: entry.notes || '' };
+        const me = byMachine[entry.machine];
+        if (!me.workerEntries[entry.worker]) me.workerEntries[entry.worker] = [];
+        me.workerEntries[entry.worker].push({ time_start: entry.time_start || '', time_finish: entry.time_finish || '' });
     });
 
     Object.keys(byMachine).forEach(function(machineName) {
@@ -533,21 +612,43 @@ function applyScheduleToInterface(schedule) {
         const notesEl = document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]');
         if (notesEl) notesEl.value = entry.notes;
 
-        entry.workers.forEach(function(w) {
-            const worker = workers.find(function(wk) { return wk.name === w.name; });
+        const extraTimesSet = [];
+
+        Object.keys(entry.workerEntries).forEach(function(workerName) {
+            const times  = entry.workerEntries[workerName];
+            const worker = workers.find(function(wk) { return wk.name === workerName; });
             if (!worker) return;
             const workerCb = document.getElementById('worker-' + machine.row + '-' + worker.col);
             if (!workerCb) return;
+
+            // First time entry → individual worker time
+            const first = times[0];
             workerCb.checked = true;
             const timesDiv = document.getElementById('worker-times-' + machine.row + '-' + worker.col);
             if (timesDiv) timesDiv.style.display = 'flex';
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
-            if (tsEl) tsEl.value = w.time_start;
-            if (tfEl) tfEl.value = w.time_finish;
+            if (tsEl) tsEl.value = first.time_start;
+            if (tfEl) tfEl.value = first.time_finish;
             if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
-            workerAssignments[worker.col].push({ machineName: machineName, timeStart: w.time_start || '--:--', timeFinish: w.time_finish || '--:--' });
+            workerAssignments[worker.col].push({ machineName: machineName, timeStart: first.time_start || '--:--', timeFinish: first.time_finish || '--:--' });
+
+            // Additional time entries → machine-level extra blocks
+            for (var i = 1; i < times.length; i++) {
+                const t = times[i];
+                const dup = extraTimesSet.find(function(e) { return e.timeStart === t.time_start && e.timeFinish === t.time_finish; });
+                if (!dup) extraTimesSet.push({ timeStart: t.time_start, timeFinish: t.time_finish });
+            }
         });
+
+        if (extraTimesSet.length) {
+            machineExtraTimes[machine.row] = extraTimesSet;
+            const container = document.getElementById('extra-times-container-' + machine.row);
+            if (container) {
+                const card = container.closest('.machine-card');
+                if (card) renderExtraTimesSection(machine.row, card);
+            }
+        }
     });
 
     updateAssignmentBadges();
@@ -568,7 +669,8 @@ async function saveSchedule() {
 
         if (!checked.length) return;   // no workers — skip silently
 
-        const missingTimes = [];
+        const missingTimes    = [];
+        const assignedWorkers = [];
         checked.forEach(function(cb) {
             const wc     = parseInt(cb.dataset.workerCol);
             const worker = workers.find(function(w) { return w.col === wc; });
@@ -579,7 +681,17 @@ async function saveSchedule() {
             const tf = tfEl ? tfEl.value : '';
             if (!ts || !tf) { missingTimes.push(worker.name); return; }
             scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: ts, time_finish: tf, notes: notes });
+            assignedWorkers.push({ worker: worker, wc: wc });
         });
+
+        // Extra time blocks — emit one entry per assigned worker per block
+        (machineExtraTimes[machine.row] || []).forEach(function(block) {
+            if (!block.timeStart || !block.timeFinish) return;
+            assignedWorkers.forEach(function(aw) {
+                scheduleData.push({ machine: machine.name, worker: aw.worker.name, role: getProficiency(machine.row, aw.wc), time_start: block.timeStart, time_finish: block.timeFinish, notes: notes });
+            });
+        });
+
         if (missingTimes.length) errors.push(machine.name + ': set times for ' + missingTimes.join(', '));
     });
 
