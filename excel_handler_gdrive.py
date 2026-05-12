@@ -55,6 +55,7 @@ class ExcelHandlerGDrive:
             top=Side(style='thin'), bottom=Side(style='thin'),
         )
         self.center_align = Alignment(horizontal='center', vertical='center')
+        self.left_align   = Alignment(horizontal='left',   vertical='center', wrap_text=True)
 
         # Resolve filename → file_id at construction time
         if not self.file_id and self.filename:
@@ -554,7 +555,7 @@ class ExcelHandlerGDrive:
                         c = sheet.cell(row=dest_row, column=T_OFF + idx)
                         c.value     = cell_text if idx == start_idx else ''
                         c.fill      = self.yellow_fill
-                        c.alignment = self.center_align
+                        c.alignment = self.left_align if idx == start_idx else self.center_align
                         c.border    = self.thin_border
                     print(f"  ✓ {mname!r}  {t_start}→{t_finish}  {cell_text!r}")
                 else:
