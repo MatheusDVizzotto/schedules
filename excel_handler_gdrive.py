@@ -73,7 +73,7 @@ class ExcelHandlerGDrive:
             raise ValueError("No file_id available — check config.py")
 
         buf = self.gdrive.download_file(self.file_id)
-        self.workbook = openpyxl.load_workbook(buf)
+        self.workbook = openpyxl.load_workbook(buf, data_only=True, keep_vba=False)
         return self.workbook
 
     def save(self):
