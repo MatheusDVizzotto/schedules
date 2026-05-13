@@ -327,12 +327,15 @@ class ExcelHandlerGDrive:
         if SCHEDULE_MODE == 'NEW_SHEET_PER_DAY':
             sheet_name = date.strftime('%d-%m-%y') if hasattr(date, 'strftime') else str(date)
             if sheet_name in self.workbook.sheetnames:
-                print(f"  Using existing sheet: {sheet_name!r}")
-                sheet = self.workbook[sheet_name]
-                sheet.delete_rows(1, sheet.max_row)   # wipe old content
+                # Remove the sheet entirely so merged cells, column widths, and
+                # all formatting are gone before we write fresh data.
+                idx = self.workbook.sheetnames.index(sheet_name)
+                self.workbook.remove(self.workbook[sheet_name])
+                sheet = self.workbook.create_sheet(sheet_name, idx)
+                print(f"  Cleared and recreated sheet: {sheet_name!r}")
             else:
-                print(f"  Creating new sheet: {sheet_name!r}")
                 sheet = self.workbook.create_sheet(sheet_name)
+                print(f"  Creating new sheet: {sheet_name!r}")
             self._write_day_sheet(sheet, date, schedule_data)
         else:
             # SAME_SHEET — write yellow cells into the master sheet

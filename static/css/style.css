@@ -148,13 +148,8 @@ input[type="time"] { font-size: 0.95rem; }
 
 /* ── Workers list ─────────────────────────────────────────────── */
 .worker-list {
-    max-height: 380px;
-    overflow-y: auto;
     padding-right: 4px;
 }
-.worker-list::-webkit-scrollbar { width: 5px; }
-.worker-list::-webkit-scrollbar-track { background: var(--surface2); border-radius: 4px; }
-.worker-list::-webkit-scrollbar-thumb { background: var(--scrollbar); border-radius: 4px; }
 
 .worker-item {
     padding: 7px 10px;
@@ -286,8 +281,7 @@ input[type="time"] { font-size: 0.95rem; }
     .machine-card .card-body .row { flex-direction: column; }
     .machine-card .card-body [class*="col-"] { width: 100%; margin-bottom: 12px; }
 
-    /* Worker list: allow more height on mobile */
-    .worker-list { max-height: 260px; }
+    /* Worker list: no scroll constraint on mobile */
 
     /* Save button: full width */
     #saveSchedule { width: 100%; min-width: unset; }
@@ -311,7 +305,6 @@ input[type="time"] { font-size: 0.95rem; }
     .machine-card .card-body .row { flex-direction: column; }
     .machine-card .card-body [class*="col-"] { width: 100%; margin-bottom: 10px; }
 
-    .worker-list { max-height: 320px; }
 }
 
 /* ── Desktop (≥ 992px) ────────────────────────────────────────── */
