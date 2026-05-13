@@ -762,11 +762,28 @@ async function saveSchedule() {
 
 // ── Assignment badges ─────────────────────────────────────────────────────────
 
+var PASTEL_PALETTE = [
+    '#ffd6d6', '#ffd6a5', '#fffacd', '#d6f5d6',
+    '#d6eaff', '#e8d6ff', '#ffd6f5', '#d6fff5',
+    '#ffe4d6', '#d6f0ff', '#f5d6ff', '#d6ffe4',
+];
+
+function getMachineColor(machineName) {
+    var hash = 0;
+    for (var i = 0; i < machineName.length; i++) {
+        hash = (hash * 31 + machineName.charCodeAt(i)) & 0xffffffff;
+    }
+    return PASTEL_PALETTE[Math.abs(hash) % PASTEL_PALETTE.length];
+}
+
 function getAssignmentBadge(workerCol) {
     const list = workerAssignments[workerCol];
     if (!list || !list.length) return '';
     return list.map(function(a) {
-        return '<span class="badge bg-info text-dark ms-1">' + escapeHtml(a.machineName) + ' ' + escapeHtml(a.timeStart) + '–' + escapeHtml(a.timeFinish) + '</span>';
+        var bg = getMachineColor(a.machineName);
+        return '<span class="badge ms-1" style="background-color:' + bg + ';color:#333;">' +
+               escapeHtml(a.machineName) + ' ' + escapeHtml(a.timeStart) + '–' + escapeHtml(a.timeFinish) +
+               '</span>';
     }).join('');
 }
 
