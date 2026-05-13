@@ -537,23 +537,55 @@ class ExcelHandlerGDrive:
             if entry:
                 notes_text = ' | '.join(entry['notes']) if entry['notes'] else ''
 
-                # Group workers by (time_start, time_finish)
-                time_groups: dict[tuple, list] = {}
-                for we in entry['worker_entries']:
-                    key = (we['time_start'], we['time_finish'])
-                    time_groups.setdefault(key, []).append(we['name'])
+                # Merge overlapping worker intervals into contiguous bands so that
+                # workers with different but overlapping times (e.g. 07:00-15:00 and
+                # 07:00-16:00) produce ONE yellow block spanning the full range.
+                # Truly disjoint ranges (split-shift extra blocks) remain separate.
+                all_intervals = sorted(
+                    [(we['time_start'], we['time_finish'], we['name'])
+                     for we in entry['worker_entries']],
+                    key=lambda x: x[0],
+                )
 
-                for (t_start, t_finish), names in sorted(time_groups.items()):
-                    worker_parts = [f"{name} {t_start}-{t_finish}" for name in names]
-                    cell_text    = ', '.join(worker_parts)
+                bands: list[tuple] = []  # [(band_start, band_finish, [(name, ws, wf), ...])]
+                for w_start, w_finish, name in all_intervals:
+                    if bands and w_start <= bands[-1][1]:
+                        b_start, b_finish, workers = bands[-1]
+                        bands[-1] = (b_start, max(b_finish, w_finish),
+                                     workers + [(name, w_start, w_finish)])
+                    else:
+                        bands.append((w_start, w_finish, [(name, w_start, w_finish)]))
+
+                for band_start, band_finish, band_workers in bands:
+                    # Group by worker name, preserving each worker's block order
+                    worker_blocks: dict[str, list[tuple[str, str]]] = {}
+                    for name, ws, wf in band_workers:
+                        worker_blocks.setdefault(name, []).append((ws, wf))
+
+                    # Single-block workers first (sorted by start), then multi-block workers
+                    single = [(n, b) for n, b in worker_blocks.items() if len(b) == 1]
+                    multi  = [(n, b) for n, b in worker_blocks.items() if len(b) > 1]
+                    single.sort(key=lambda x: x[1][0][0])
+                    multi.sort(key=lambda x: x[1][0][0])
+
+                    worker_parts = []
+                    for name, blocks in single + multi:
+                        if len(blocks) == 1:
+                            ws, wf = blocks[0]
+                            worker_parts.append(f"{name} {ws}-{wf}")
+                        else:
+                            block_strs = ', '.join(f"({ws}-{wf})" for ws, wf in blocks)
+                            worker_parts.append(f"{name} {block_strs}")
+
+                    cell_text = ', '.join(worker_parts)
                     if notes_text:
                         cell_text += f' - {notes_text}'
 
-                    start_idx  = self._slot_index(t_start, time_slots)
-                    finish_idx = self._slot_index(t_finish, time_slots)
+                    start_idx  = self._slot_index(band_start, time_slots)
+                    finish_idx = self._slot_index(band_finish, time_slots)
 
                     if start_idx is None or finish_idx is None:
-                        print(f"  ⚠ Bad times for {mname!r} ({t_start}–{t_finish})")
+                        print(f"  ⚠ Bad times for {mname!r} ({band_start}–{band_finish})")
                         continue
 
                     col_start = T_OFF + start_idx
@@ -578,7 +610,7 @@ class ExcelHandlerGDrive:
                     merged_cell.fill      = self.yellow_fill
                     merged_cell.alignment = self.left_align
                     merged_cell.border    = self.thin_border
-                    print(f"  ✓ {mname!r}  {t_start}→{t_finish}  {cell_text!r}")
+                    print(f"  ✓ {mname!r}  {band_start}→{band_finish}  {cell_text!r}")
 
             sheet.row_dimensions[dest_row].height =                 main_sheet.row_dimensions[main_row].height or 15
             dest_row += 1
@@ -683,7 +715,13 @@ class ExcelHandlerGDrive:
             if not text_blocks:
                 continue   # no text → unassigned row
 
-            _worker_time_re = re.compile(r'^(.*?)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$')
+            # Patterns for the three cell text formats:
+            #   plain   "Worker A 07:00-15:00"
+            #   paren1  "Worker B (07:00-10:00)"   ← first block of a multi-block worker
+            #   paren+  "(12:00-15:00)"             ← continuation block for previous worker
+            _re_plain  = re.compile(r'^(.*?)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$')
+            _re_paren1 = re.compile(r'^(.*?)\s+\((\d{2}:\d{2})-(\d{2}:\d{2})\)$')
+            _re_paren  = re.compile(r'^\((\d{2}:\d{2})-(\d{2}:\d{2})\)$')
 
             for text_col, block_text in text_blocks:
                 print(f"  Row {mname!r}: slot {text_col}, text={block_text!r}")
@@ -696,20 +734,40 @@ class ExcelHandlerGDrive:
                     workers_str = parts[0].strip()
                     notes       = parts[1].strip()
 
+                current_worker = None
                 for part in workers_str.split(','):
                     part = part.strip()
                     if not part:
                         continue
-                    m = _worker_time_re.match(part)
-                    if m:
-                        wname    = m.group(1).strip()
-                        w_start  = m.group(2)
-                        w_finish = m.group(3)
+
+                    # "(HH:MM-HH:MM)" — extra block for the most recent worker
+                    mp = _re_paren.match(part)
+                    if mp and current_worker:
+                        wname    = current_worker
+                        w_start  = mp.group(1)
+                        w_finish = mp.group(2)
                     else:
-                        # Legacy entry without embedded times — use slot position as fallback
-                        wname    = part
-                        w_start  = time_slots[text_col] if text_col < len(time_slots) else ''
-                        w_finish = ''
+                        # "Name (HH:MM-HH:MM)" — first paren block for this worker
+                        mp1 = _re_paren1.match(part)
+                        if mp1:
+                            current_worker = mp1.group(1).strip()
+                            wname    = current_worker
+                            w_start  = mp1.group(2)
+                            w_finish = mp1.group(3)
+                        else:
+                            # "Name HH:MM-HH:MM" — plain single block
+                            mpl = _re_plain.match(part)
+                            if mpl:
+                                current_worker = mpl.group(1).strip()
+                                wname    = current_worker
+                                w_start  = mpl.group(2)
+                                w_finish = mpl.group(3)
+                            else:
+                                # Legacy: no times — use slot position as fallback
+                                current_worker = part
+                                wname    = part
+                                w_start  = time_slots[text_col] if text_col < len(time_slots) else ''
+                                w_finish = ''
                     schedule.append({
                         'machine':     mname,
                         'worker':      wname,
