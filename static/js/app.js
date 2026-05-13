@@ -227,6 +227,40 @@ function updateProceedButton() {
     btn.textContent = checked
         ? 'Assign Workers (' + checked + ') →'
         : 'Assign Workers →';
+    updateAssignmentSummary();
+}
+
+function updateAssignmentSummary() {
+    const el = document.getElementById('assignmentSummary');
+    if (!el) return;
+
+    const selectedRows = new Set();
+    document.querySelectorAll('.machine-filter-cb:checked').forEach(function(cb) {
+        selectedRows.add(parseInt(cb.dataset.machineRow));
+    });
+
+    if (!selectedRows.size) { el.innerHTML = ''; return; }
+
+    const assignedWorkers = new Set();
+    let missingCount = 0;
+
+    selectedRows.forEach(function(row) {
+        const saved = savedAssignments[row];
+        if (!saved || !saved.workers.length) {
+            missingCount++;
+        } else {
+            saved.workers.forEach(function(w) { assignedWorkers.add(w.col); });
+        }
+    });
+
+    var parts = [];
+    if (assignedWorkers.size > 0) {
+        parts.push('<span class="badge bg-success">' + assignedWorkers.size + ' worker' + (assignedWorkers.size !== 1 ? 's' : '') + ' assigned</span>');
+    }
+    if (missingCount > 0) {
+        parts.push('<span class="badge bg-warning text-dark">' + missingCount + ' machine' + (missingCount !== 1 ? 's' : '') + ' missing</span>');
+    }
+    el.innerHTML = parts.join(' ');
 }
 
 function selectAllMachines() {
@@ -283,10 +317,10 @@ function showStepTwo() {
 }
 
 function showStepOne() {
-    // Snapshot current assignment state before going back
     snapshotAssignments();
     document.getElementById('stepTwo').style.display = 'none';
     document.getElementById('stepOne').style.display = 'block';
+    updateAssignmentSummary();
     window.scrollTo(0, 0);
 }
 
