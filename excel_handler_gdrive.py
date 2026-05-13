@@ -532,73 +532,78 @@ class ExcelHandlerGDrive:
                 c.fill   = no_fill
                 c.border = self.thin_border
 
-            # Paint yellow: one continuous bar from the earliest start to the latest
-            # finish across all workers.  Within that bar, each unique start-time
-            # breakpoint gets its own non-overlapping merged block listing the workers
-            # that begin at that moment.  Workers assigned multiple separate blocks on
-            # the same machine therefore appear at the correct positions in the timeline.
-            # Notes are written only on the first (leftmost) block.
+            # Yellow bar strategy:
+            # 1. Merge overlapping worker intervals into contiguous bands.  Workers
+            #    whose times overlap (or are bridged by another worker) share ONE
+            #    yellow merged cell.  Non-overlapping blocks (genuine gap = no one
+            #    working) produce separate yellow cells at their correct positions.
+            # 2. Yellow fill is applied per-band, so a gap between two bands stays
+            #    white — the bar does NOT stretch across empty time.
+            # 3. Text format:  single-block worker → "Name HH:MM-HH:MM"
+            #                  multi-block worker  → "Name (HH:MM-HH:MM),(HH:MM-HH:MM)"
+            #    Single-block workers listed first, then multi-block workers.
+            # 4. Notes appear only on the first (leftmost) band.
             if entry:
                 notes_text = ' | '.join(entry['notes']) if entry['notes'] else ''
 
-                all_entries = [
-                    (we['time_start'], we['time_finish'], we['name'])
-                    for we in entry['worker_entries']
-                    if we['time_start'] and we['time_finish']
-                ]
-                if not all_entries:
-                    pass
-                else:
-                    # ── Step 1: yellow fill over the full occupied range ──────────
-                    overall_start  = min(e[0] for e in all_entries)
-                    overall_finish = max(e[1] for e in all_entries)
+                all_intervals = sorted(
+                    [(we['time_start'], we['time_finish'], we['name'])
+                     for we in entry['worker_entries']
+                     if we['time_start'] and we['time_finish']],
+                    key=lambda x: x[0],
+                )
 
-                    ov_s = self._slot_index(overall_start,  time_slots)
-                    ov_f = self._slot_index(overall_finish, time_slots)
-                    if ov_s is not None and ov_f is not None:
-                        for idx in range(ov_s, min(ov_f, len(time_slots))):
-                            c = sheet.cell(row=dest_row, column=T_OFF + idx)
-                            c.fill   = self.yellow_fill
-                            c.border = self.thin_border
+                if all_intervals:
+                    bands: list[tuple] = []  # [(band_start, band_finish, [(name, ws, wf), ...])]
+                    for w_start, w_finish, name in all_intervals:
+                        if bands and w_start <= bands[-1][1]:
+                            b_start, b_finish, workers = bands[-1]
+                            bands[-1] = (b_start, max(b_finish, w_finish),
+                                         workers + [(name, w_start, w_finish)])
+                        else:
+                            bands.append((w_start, w_finish, [(name, w_start, w_finish)]))
 
-                    # ── Step 2: one merged text block per unique start-time ───────
-                    # Collect unique breakpoints from all start/finish times.
-                    # For each consecutive pair [seg_start, seg_end), write a merged
-                    # block at seg_start if any worker begins there.  These blocks
-                    # never overlap because each spans only to the next breakpoint.
-                    breakpoints = sorted({t for e in all_entries for t in (e[0], e[1])})
+                    first_band = True
+                    for band_start, band_finish, band_workers in bands:
+                        # Group by worker name, preserving each worker's block order
+                        worker_blocks: dict[str, list[tuple[str, str]]] = {}
+                        for name, ws, wf in band_workers:
+                            worker_blocks.setdefault(name, []).append((ws, wf))
 
-                    first_block = True
-                    for i in range(len(breakpoints) - 1):
-                        seg_start = breakpoints[i]
-                        seg_end   = breakpoints[i + 1]
+                        # Single-block workers first (sorted by start then name),
+                        # then multi-block workers in the same order
+                        single = [(n, b) for n, b in worker_blocks.items() if len(b) == 1]
+                        multi  = [(n, b) for n, b in worker_blocks.items() if len(b) > 1]
+                        single.sort(key=lambda x: (x[1][0][0], x[0]))
+                        multi.sort(key=lambda x: (x[1][0][0], x[0]))
 
-                        starters = [
-                            (ws, wf, name)
-                            for ws, wf, name in all_entries
-                            if ws == seg_start
-                        ]
-                        if not starters:
-                            continue   # gap — yellow fill already applied, no text
+                        worker_parts = []
+                        for name, blocks in single + multi:
+                            if len(blocks) == 1:
+                                ws, wf = blocks[0]
+                                worker_parts.append(f"{name} {ws}-{wf}")
+                            else:
+                                block_strs = ','.join(f"({ws}-{wf})" for ws, wf in blocks)
+                                worker_parts.append(f"{name} {block_strs}")
 
-                        # Longest finish first so the "main" worker leads; then by name
-                        starters.sort(key=lambda x: x[2])            # name asc (stable)
-                        starters.sort(key=lambda x: x[1], reverse=True)  # finish desc
-
-                        worker_parts = [f"{name} {ws}-{wf}" for ws, wf, name in starters]
                         cell_text = ', '.join(worker_parts)
-                        if first_block and notes_text:
+                        if first_band and notes_text:
                             cell_text += f' - {notes_text}'
-                        first_block = False
+                        first_band = False
 
-                        start_idx = self._slot_index(seg_start, time_slots)
-                        end_idx   = self._slot_index(seg_end,   time_slots)
-                        if start_idx is None or end_idx is None or start_idx >= end_idx:
-                            print(f"  ⚠ Bad/zero-width segment for {mname!r} ({seg_start}–{seg_end})")
+                        start_idx  = self._slot_index(band_start, time_slots)
+                        finish_idx = self._slot_index(band_finish, time_slots)
+                        if start_idx is None or finish_idx is None or start_idx >= finish_idx:
+                            print(f"  ⚠ Bad times for {mname!r} ({band_start}–{band_finish})")
                             continue
 
                         col_start = T_OFF + start_idx
-                        col_end   = T_OFF + min(end_idx, len(time_slots)) - 1
+                        col_end   = T_OFF + min(finish_idx, len(time_slots)) - 1
+
+                        for idx in range(start_idx, min(finish_idx, len(time_slots))):
+                            c = sheet.cell(row=dest_row, column=T_OFF + idx)
+                            c.fill   = self.yellow_fill
+                            c.border = self.thin_border
 
                         if col_end > col_start:
                             try:
@@ -614,7 +619,7 @@ class ExcelHandlerGDrive:
                         merged_cell.fill      = self.yellow_fill
                         merged_cell.alignment = self.left_align
                         merged_cell.border    = self.thin_border
-                        print(f"  ✓ {mname!r}  {seg_start}→{seg_end}  {cell_text!r}")
+                        print(f"  ✓ {mname!r}  {band_start}→{band_finish}  {cell_text!r}")
 
             sheet.row_dimensions[dest_row].height =                 main_sheet.row_dimensions[main_row].height or 15
             dest_row += 1
