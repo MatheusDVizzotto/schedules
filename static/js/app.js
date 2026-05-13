@@ -253,9 +253,14 @@ function updateAssignmentSummary() {
         }
     });
 
+    const unassignedCount = workers.length - assignedWorkers.size;
+
     var parts = [];
     if (assignedWorkers.size > 0) {
         parts.push('<span class="badge bg-success">' + assignedWorkers.size + ' worker' + (assignedWorkers.size !== 1 ? 's' : '') + ' assigned</span>');
+    }
+    if (unassignedCount > 0) {
+        parts.push('<span class="badge bg-secondary">' + unassignedCount + ' worker' + (unassignedCount !== 1 ? 's' : '') + ' not assigned</span>');
     }
     if (missingCount > 0) {
         parts.push('<span class="badge bg-warning text-dark">' + missingCount + ' machine' + (missingCount !== 1 ? 's' : '') + ' missing</span>');
