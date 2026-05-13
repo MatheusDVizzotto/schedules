@@ -53,24 +53,27 @@ class ExcelHandler:
         return machines
 
     def get_workers(self, sheet_name=None):
-        """Extract workers from row 1 starting at column AO (41), scanning until empty."""
+        """Extract workers from row 1 starting at column AO (41), scanning until 5 consecutive empty columns."""
         if not self.workbook:
             self.load()
 
         sheet = self.workbook[sheet_name] if sheet_name else self.workbook.active
         workers = []
 
+        consecutive_empty = 0
         col = 41  # AO
-        while True:
+        while consecutive_empty < 5:
             col_letter = get_column_letter(col)
             cell_value = sheet[f'{col_letter}1'].value
-            if not cell_value:
-                break
-            workers.append({
-                'col': col,
-                'col_letter': col_letter,
-                'name': str(cell_value).strip()
-            })
+            if cell_value:
+                workers.append({
+                    'col': col,
+                    'col_letter': col_letter,
+                    'name': str(cell_value).strip()
+                })
+                consecutive_empty = 0
+            else:
+                consecutive_empty += 1
             col += 1
 
         return workers

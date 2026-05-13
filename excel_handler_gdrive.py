@@ -132,19 +132,22 @@ class ExcelHandlerGDrive:
     def get_workers(self, sheet_name: str | None = None) -> list[dict]:
         """
         Return [{col, col_letter, name}, …] for every non-empty cell in
-        row 1 starting from WORKER_COL_START, scanning until an empty cell
-        is found so newly added workers are always picked up without needing
-        to restart the app or update WORKER_COL_END.
+        row 1 starting from WORKER_COL_START. Scans until 5 consecutive
+        empty columns are found so newly added workers are always picked up
+        without needing to restart the app or update WORKER_COL_END.
         """
         sheet = self._active_sheet(sheet_name)
         workers = []
+        consecutive_empty = 0
         col = WORKER_COL_START
-        while True:
+        while consecutive_empty < 5:
             letter = get_column_letter(col)
             val = sheet[f'{letter}1'].value
-            if not val:
-                break
-            workers.append({'col': col, 'col_letter': letter, 'name': str(val).strip()})
+            if val:
+                workers.append({'col': col, 'col_letter': letter, 'name': str(val).strip()})
+                consecutive_empty = 0
+            else:
+                consecutive_empty += 1
             col += 1
         return workers
 
