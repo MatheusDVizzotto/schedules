@@ -53,23 +53,25 @@ class ExcelHandler:
         return machines
 
     def get_workers(self, sheet_name=None):
-        """Extract workers from AO1:AX1 (columns 41-50)"""
+        """Extract workers from row 1 starting at column AO (41), scanning until empty."""
         if not self.workbook:
             self.load()
 
         sheet = self.workbook[sheet_name] if sheet_name else self.workbook.active
         workers = []
 
-        # AO = column 41, AX = column 50
-        for col in range(41, 51):
+        col = 41  # AO
+        while True:
             col_letter = get_column_letter(col)
             cell_value = sheet[f'{col_letter}1'].value
-            if cell_value:
-                workers.append({
-                    'col': col,
-                    'col_letter': col_letter,
-                    'name': str(cell_value).strip()
-                })
+            if not cell_value:
+                break
+            workers.append({
+                'col': col,
+                'col_letter': col_letter,
+                'name': str(cell_value).strip()
+            })
+            col += 1
 
         return workers
 

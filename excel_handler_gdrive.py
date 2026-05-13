@@ -132,15 +132,20 @@ class ExcelHandlerGDrive:
     def get_workers(self, sheet_name: str | None = None) -> list[dict]:
         """
         Return [{col, col_letter, name}, …] for every non-empty cell in
-        row 1 within the configured column range.
+        row 1 starting from WORKER_COL_START, scanning until an empty cell
+        is found so newly added workers are always picked up without needing
+        to restart the app or update WORKER_COL_END.
         """
         sheet = self._active_sheet(sheet_name)
         workers = []
-        for col in range(WORKER_COL_START, WORKER_COL_END + 1):
+        col = WORKER_COL_START
+        while True:
             letter = get_column_letter(col)
             val = sheet[f'{letter}1'].value
-            if val:
-                workers.append({'col': col, 'col_letter': letter, 'name': str(val).strip()})
+            if not val:
+                break
+            workers.append({'col': col, 'col_letter': letter, 'name': str(val).strip()})
+            col += 1
         return workers
 
     def update_worker_name(self, worker_col: int, new_name: str, sheet_name: str | None = None):
