@@ -257,6 +257,8 @@ function buildCard(item) {
 
     if (isAllDim) {
         html += buildDimensionBreakdown(item.size, item.item_type);
+    } else {
+        html += buildSingleDimensionBays(item.size, item.item_type, item.dimensions);
     }
 
     html += '</div></div></div>';
@@ -293,6 +295,24 @@ function buildDimensionBreakdown(size, itemType) {
                 escHtml(b.bay_code || '—') + '</span>';
         });
         html += '</div></div>';
+    });
+    html += '</div>';
+    return html;
+}
+
+function buildSingleDimensionBays(size, itemType, dimension) {
+    var bays = allBays.filter(function (bay) {
+        return bay.actual_size === size && bay.item_type === itemType && bay.item_subtype === dimension;
+    });
+
+    if (bays.length === 0) return '';
+
+    var html = '<hr class="my-2"><div class="small fw-semibold text-muted mb-2">Bay Codes</div>';
+    html += '<div class="d-flex flex-wrap gap-1">';
+    bays.forEach(function (b) {
+        var tip = escHtml((b.location || '') + (b.bay_code ? ' · ' + b.bay_code : '') + ' — ' + (b.quantity || '0') + ' box');
+        html += '<span class="badge text-bg-secondary" title="' + tip + '">' +
+            escHtml(b.bay_code || '—') + '</span>';
     });
     html += '</div>';
     return html;
