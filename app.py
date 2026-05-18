@@ -13,6 +13,8 @@ from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 import json
 import os
+import threading
+import time as _time
 
 from config import (
     GOOGLE_DRIVE_FILE_ID, GOOGLE_DRIVE_FILENAME, USE_FILE_ID,
@@ -56,14 +58,48 @@ def save_deleted_workers():
 
 
 def get_excel_handler():
-    """
-    Return an ExcelHandlerGDrive instance.
-    Lazy-import so startup errors are clearer.
-    """
+    """Return a fresh ExcelHandlerGDrive (not loaded). Use for write operations."""
     from excel_handler_gdrive import ExcelHandlerGDrive
     if USE_FILE_ID:
         return ExcelHandlerGDrive(file_id=GOOGLE_DRIVE_FILE_ID)
     return ExcelHandlerGDrive(filename=GOOGLE_DRIVE_FILENAME)
+
+
+# ---------------------------------------------------------------------------
+# Workbook cache — avoids re-downloading from Google Drive on every request.
+# Read endpoints use this; write endpoints use get_excel_handler() + load()
+# directly and call invalidate_cache() after saving.
+# ---------------------------------------------------------------------------
+
+_cache_lock = threading.Lock()
+_cached_handler = None
+_cached_at = 0.0
+CACHE_TTL = 60  # seconds
+
+
+def get_cached_handler():
+    """Return a loaded ExcelHandlerGDrive, re-downloading only when stale."""
+    global _cached_handler, _cached_at
+    with _cache_lock:
+        now = _time.monotonic()
+        if _cached_handler is None or (now - _cached_at) > CACHE_TTL:
+            h = get_excel_handler()
+            h.load()
+            if _cached_handler is not None:
+                _cached_handler.workbook = None  # release old workbook memory
+            _cached_handler = h
+            _cached_at = now
+        return _cached_handler
+
+
+def invalidate_cache():
+    """Force the next read to re-download from Google Drive."""
+    global _cached_handler, _cached_at
+    with _cache_lock:
+        if _cached_handler is not None:
+            _cached_handler.workbook = None
+        _cached_handler = None
+        _cached_at = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -118,12 +154,10 @@ def get_all_data():
     The frontend calls this once on page load instead of making three requests.
     """
     try:
-        handler = get_excel_handler()
-        handler.load()
+        handler = get_cached_handler()
         machines = handler.get_machines()
         all_workers = handler.get_workers()
         proficiencies = handler.get_all_proficiencies()
-        handler.close()
 
         active_workers = [w for w in all_workers if w['name'] not in deleted_workers]
 
@@ -151,10 +185,8 @@ def get_all_data():
 @app.route('/api/machines', methods=['GET'])
 def get_machines():
     try:
-        handler = get_excel_handler()
-        handler.load()
+        handler = get_cached_handler()
         machines = handler.get_machines()
-        handler.close()
         return jsonify({'success': True, 'machines': machines})
     except Exception as e:
         print(f"Error in get_machines: {e}")
@@ -169,10 +201,8 @@ def get_machines():
 def get_workers():
     """Return all workers, excluding soft-deleted ones."""
     try:
-        handler = get_excel_handler()
-        handler.load()
+        handler = get_cached_handler()
         all_workers = handler.get_workers()
-        handler.close()
         active = [w for w in all_workers if w['name'] not in deleted_workers]
         return jsonify({'success': True, 'workers': active})
     except Exception as e:
@@ -226,6 +256,7 @@ def update_worker():
         handler.load()
         handler.update_worker_name(int(data['worker_col']), data['new_name'].strip())
         handler.close()
+        invalidate_cache()
         return jsonify({'success': True, 'message': 'Worker name updated'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -255,6 +286,7 @@ def add_worker():
         handler.load()
         new_col = handler.add_worker(name)
         handler.close()
+        invalidate_cache()
 
         # Bump WORKER_COL_END in config.py so the new worker is included next load
         _update_config_worker_col_end(new_col)
@@ -292,10 +324,8 @@ def _update_config_worker_col_end(new_col: int):
 @app.route('/api/proficiency', methods=['GET'])
 def get_proficiency():
     try:
-        handler = get_excel_handler()
-        handler.load()
+        handler = get_cached_handler()
         data = handler.get_all_proficiencies()
-        handler.close()
         return jsonify({'success': True, 'proficiency': data})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -312,6 +342,7 @@ def update_proficiency():
         handler.load()
         handler.update_proficiencies_bulk(data['proficiencies'])
         handler.close()
+        invalidate_cache()
         return jsonify({'success': True, 'message': 'Proficiencies updated'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -362,9 +393,11 @@ def save_schedule():
         handler = get_excel_handler()
         handler.load()
         handler.save_schedule_visual(schedule_date, schedule_data)
+        file_id = handler.file_id
         handler.close()
+        invalidate_cache()
 
-        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit'
+        sheets_url = f'https://docs.google.com/spreadsheets/d/{file_id}/edit'
         return jsonify({
             'success':    True,
             'message':    'Schedule saved successfully to Google Drive',
@@ -384,10 +417,8 @@ def get_schedule(date_str):
     except ValueError:
         return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
     try:
-        handler = get_excel_handler()
-        handler.load()
+        handler = get_cached_handler()
         schedule = handler.get_schedule(datetime.strptime(date_str, '%Y-%m-%d').date())
-        handler.close()
         return jsonify({'success': True, 'schedule': schedule})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
