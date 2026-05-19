@@ -411,6 +411,23 @@ function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
+// When a worker already has assignments, fill the new slot into the earliest gap.
+// Returns {timeStart, timeFinish} or null if the worker has no prior assignments.
+function smartDefaultTimes(workerCol, machName) {
+    const existing = workerAssignments[workerCol];
+    if (!existing || !existing.length) return null;
+    const validTimes = existing.filter(function(a) { return a.timeFinish && a.timeFinish !== '--:--'; });
+    if (!validTimes.length) return null;
+    const finishes = validTimes.map(function(a) { return a.timeFinish; }).sort();
+    const newStart = finishes[0];
+    const laterStarts = existing
+        .map(function(a) { return a.timeStart; })
+        .filter(function(t) { return t && t !== '--:--' && t > newStart; })
+        .sort();
+    const newFinish = laterStarts.length ? laterStarts[0] : defaultFinish(machName);
+    return { timeStart: newStart, timeFinish: newFinish };
+}
+
 // ── Step 2: Schedule assignment cards ────────────────────────────────────────
 
 function renderScheduleInterface() {
@@ -457,6 +474,11 @@ function renderScheduleInterface() {
                     if (extraContainer) extraContainer.style.display = 'block';
                     const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                    const smart = smartDefaultTimes(workerCol, machName);
+                    if (smart) {
+                        if (tsEl) tsEl.value = smart.timeStart;
+                        if (tfEl) tfEl.value = smart.timeFinish;
+                    }
                     const ts = tsEl ? tsEl.value : '--:--';
                     const tf = tfEl ? tfEl.value : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
