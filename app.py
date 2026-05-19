@@ -245,6 +245,31 @@ def get_deleted_workers():
     return jsonify({'success': True, 'workers': list(deleted_workers)})
 
 
+@app.route('/api/workers/permanent-delete', methods=['POST'])
+def permanent_delete_worker():
+    """Permanently remove a worker by clearing their column in the spreadsheet."""
+    try:
+        data = request.get_json()
+        if not data or not data.get('worker_name'):
+            return jsonify({'success': False, 'error': 'worker_name is required'}), 400
+        name = data['worker_name'].strip()
+        handler = get_excel_handler()
+        handler.load()
+        all_workers = handler.get_workers()
+        worker = next((w for w in all_workers if w['name'] == name), None)
+        if not worker:
+            handler.close()
+            return jsonify({'success': False, 'error': 'Worker not found'}), 404
+        handler.delete_worker_permanently(worker['col'])
+        handler.close()
+        deleted_workers.discard(name)
+        save_deleted_workers()
+        invalidate_cache()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/workers/update', methods=['POST'])
 def update_worker():
     """Rename a worker in the spreadsheet header row."""

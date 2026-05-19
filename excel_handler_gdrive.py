@@ -157,6 +157,12 @@ class ExcelHandlerGDrive:
         sheet[f'{get_column_letter(worker_col)}1'] = new_name
         self.save()
 
+    def delete_worker_permanently(self, worker_col: int, sheet_name: str | None = None):
+        """Delete the worker's entire column from the spreadsheet, shifting subsequent columns left."""
+        sheet = self._active_sheet(sheet_name)
+        sheet.delete_cols(worker_col, 1)
+        self.save()
+
     def add_worker(self, name: str, sheet_name: str | None = None) -> int:
         """
         Write *name* into the next empty column in row 1 after WORKER_COL_END.
