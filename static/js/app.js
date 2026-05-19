@@ -485,6 +485,11 @@ function renderScheduleInterface() {
                     if (extraContainer) extraContainer.style.display = 'block';
                     const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                    const smart = smartDefaultTimes(workerCol, machName, machRow);
+                    if (smart) {
+                        if (tsEl) tsEl.value = smart.timeStart;
+                        if (tfEl) tfEl.value = smart.timeFinish;
+                    }
                     const ts = tsEl ? tsEl.value : '--:--';
                     const tf = tfEl ? tfEl.value : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
