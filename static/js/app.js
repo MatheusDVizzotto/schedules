@@ -411,6 +411,52 @@ function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
+// Merge sorted blocks and return the first available slot after the contiguous opening group.
+// Returns {timeStart, timeFinish} or null when no valid blocks exist.
+function firstAvailableSlot(blocks, machName) {
+    const valid = blocks.filter(function(b) {
+        return b.timeStart && b.timeStart !== '--:--' && b.timeFinish && b.timeFinish !== '--:--';
+    });
+    if (!valid.length) return null;
+    valid.sort(function(a, b) { return a.timeStart.localeCompare(b.timeStart); });
+    var latestFinish = valid[0].timeFinish;
+    var nextStart = null;
+    for (var i = 1; i < valid.length; i++) {
+        if (valid[i].timeStart <= latestFinish) {
+            if (valid[i].timeFinish > latestFinish) latestFinish = valid[i].timeFinish;
+        } else {
+            nextStart = valid[i].timeStart;
+            break;
+        }
+    }
+    return { timeStart: latestFinish, timeFinish: nextStart || defaultFinish(machName) };
+}
+
+// Collect all blocks for a worker across every machine.
+function smartDefaultTimesAllMachines(workerCol, machName) {
+    const blocks = [];
+    (workerAssignments[workerCol] || []).forEach(function(a) {
+        blocks.push({ timeStart: a.timeStart, timeFinish: a.timeFinish });
+    });
+    machines.forEach(function(m) {
+        (workerExtraTimes[m.row + '-' + workerCol] || []).forEach(function(b) {
+            blocks.push({ timeStart: b.timeStart, timeFinish: b.timeFinish });
+        });
+    });
+    return firstAvailableSlot(blocks, machName);
+}
+
+// Collect blocks for a worker on a specific machine only.
+function smartDefaultTimesSameMachine(workerCol, machName, machRow) {
+    const blocks = [];
+    const primary = (workerAssignments[workerCol] || []).find(function(a) { return a.machineName === machName; });
+    if (primary) blocks.push({ timeStart: primary.timeStart, timeFinish: primary.timeFinish });
+    (workerExtraTimes[machRow + '-' + workerCol] || []).forEach(function(b) {
+        blocks.push({ timeStart: b.timeStart, timeFinish: b.timeFinish });
+    });
+    return firstAvailableSlot(blocks, machName);
+}
+
 // ── Step 2: Schedule assignment cards ────────────────────────────────────────
 
 function renderScheduleInterface() {
@@ -457,6 +503,11 @@ function renderScheduleInterface() {
                     if (extraContainer) extraContainer.style.display = 'block';
                     const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
+                    const smart = smartDefaultTimesAllMachines(workerCol, machName);
+                    if (smart) {
+                        if (tsEl) tsEl.value = smart.timeStart;
+                        if (tfEl) tfEl.value = smart.timeFinish;
+                    }
                     const ts = tsEl ? tsEl.value : '--:--';
                     const tf = tfEl ? tfEl.value : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
@@ -503,10 +554,12 @@ function renderScheduleInterface() {
                 const workerCol = parseInt(this.dataset.workerCol);
                 const mach      = machines.find(function(m) { return m.row === machRow; });
                 const key       = machRow + '-' + workerCol;
+                const machName  = mach ? mach.name : '';
                 if (!workerExtraTimes[key]) workerExtraTimes[key] = [];
+                const smart = smartDefaultTimesSameMachine(workerCol, machName, machRow);
                 workerExtraTimes[key].push({
-                    timeStart:  defaultStart(mach ? mach.name : ''),
-                    timeFinish: defaultFinish(mach ? mach.name : '')
+                    timeStart:  smart ? smart.timeStart  : defaultStart(machName),
+                    timeFinish: smart ? smart.timeFinish : defaultFinish(machName)
                 });
                 renderWorkerExtraTimes(machRow, workerCol);  // calls syncExtraBlockBadges internally
             });
@@ -818,7 +871,10 @@ function getMachineColor(machineName) {
 function getAssignmentBadge(workerCol) {
     const list = workerAssignments[workerCol];
     if (!list || !list.length) return '';
-    return list.map(function(a) {
+    const sorted = list.slice().sort(function(a, b) {
+        return a.timeStart.localeCompare(b.timeStart);
+    });
+    return sorted.map(function(a) {
         var bg = getMachineColor(a.machineName);
         return '<span class="badge ms-1" style="background-color:' + bg + ';color:#333;">' +
                escapeHtml(a.machineName) + ' ' + escapeHtml(a.timeStart) + '–' + escapeHtml(a.timeFinish) +
