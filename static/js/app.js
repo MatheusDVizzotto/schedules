@@ -818,7 +818,10 @@ function getMachineColor(machineName) {
 function getAssignmentBadge(workerCol) {
     const list = workerAssignments[workerCol];
     if (!list || !list.length) return '';
-    return list.map(function(a) {
+    const sorted = list.slice().sort(function(a, b) {
+        return a.timeStart.localeCompare(b.timeStart);
+    });
+    return sorted.map(function(a) {
         var bg = getMachineColor(a.machineName);
         return '<span class="badge ms-1" style="background-color:' + bg + ';color:#333;">' +
                escapeHtml(a.machineName) + ' ' + escapeHtml(a.timeStart) + '–' + escapeHtml(a.timeFinish) +
