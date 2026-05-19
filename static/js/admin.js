@@ -1,11 +1,17 @@
 // static/js/admin.js
 
+var _permanentDeleteName = null;
+
 document.addEventListener('DOMContentLoaded', function () {
     loadWorkers();
 
     document.getElementById('addWorkerBtn').addEventListener('click', addWorker);
     document.getElementById('newWorkerName').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') addWorker();
+    });
+
+    document.getElementById('confirmPermanentDeleteBtn').addEventListener('click', function() {
+        if (_permanentDeleteName) permanentDeleteWorker(_permanentDeleteName);
     });
 });
 
@@ -40,12 +46,18 @@ function renderActiveWorkers(workers) {
     }
 
     list.innerHTML = workers.map(function(w) {
+        const safe = escapeHtml(w.name);
         return (
-            '<li class="list-group-item d-flex justify-content-between align-items-center">' +
-              '<span><i class="fas fa-user text-primary me-2"></i>' + escapeHtml(w.name) + '</span>' +
-              '<button class="btn btn-sm btn-outline-danger" onclick="removeWorker(\'' + escapeHtml(w.name) + '\')">' +
-                '<i class="fas fa-user-slash"></i> Remove' +
-              '</button>' +
+            '<li class="list-group-item d-flex justify-content-between align-items-center gap-2">' +
+              '<span><i class="fas fa-user text-primary me-2"></i>' + safe + '</span>' +
+              '<div class="d-flex gap-1">' +
+                '<button class="btn btn-sm btn-outline-danger" onclick="removeWorker(\'' + safe + '\')">' +
+                  '<i class="fas fa-user-slash"></i> Remove' +
+                '</button>' +
+                '<button class="btn btn-sm btn-danger" onclick="confirmPermanentDelete(\'' + safe + '\')">' +
+                  '<i class="fas fa-trash"></i> Delete' +
+                '</button>' +
+              '</div>' +
             '</li>'
         );
     }).join('');
@@ -164,6 +176,44 @@ async function restoreWorker(name) {
         }
     } catch (err) {
         alert('Network error: ' + err.message);
+    }
+}
+
+// ── Permanent delete ─────────────────────────────────────────────────────────
+
+function confirmPermanentDelete(name) {
+    _permanentDeleteName = name;
+    document.getElementById('deleteWorkerNameDisplay').textContent = name;
+    const modal = new bootstrap.Modal(document.getElementById('permanentDeleteModal'));
+    modal.show();
+}
+
+async function permanentDeleteWorker(name) {
+    const modal = bootstrap.Modal.getInstance(document.getElementById('permanentDeleteModal'));
+    if (modal) modal.hide();
+
+    const btn = document.getElementById('confirmPermanentDeleteBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Deleting...';
+
+    try {
+        const res  = await fetch('/api/workers/permanent-delete', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ worker_name: name }),
+        });
+        const data = await res.json();
+        if (data.success) {
+            loadWorkers();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    } catch (err) {
+        alert('Network error: ' + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fas fa-trash"></i> Yes, Delete Permanently';
+        _permanentDeleteName = null;
     }
 }
 

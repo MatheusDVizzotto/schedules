@@ -157,6 +157,17 @@ class ExcelHandlerGDrive:
         sheet[f'{get_column_letter(worker_col)}1'] = new_name
         self.save()
 
+    def delete_worker_permanently(self, worker_col: int, sheet_name: str | None = None):
+        """Clear the worker's header cell and all proficiency cells, then save."""
+        sheet = self._active_sheet(sheet_name)
+        letter = get_column_letter(worker_col)
+        sheet[f'{letter}1'].value = None
+        first_row = min(r[0] for r in MACHINE_RANGES)
+        last_row  = max(r[1] for r in MACHINE_RANGES)
+        for row in range(first_row, last_row + 1):
+            sheet[f'{letter}{row}'].value = None
+        self.save()
+
     def add_worker(self, name: str, sheet_name: str | None = None) -> int:
         """
         Write *name* into the next empty column in row 1 after WORKER_COL_END.
