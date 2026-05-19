@@ -411,17 +411,28 @@ function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
-// When a worker already has assignments, fill the new slot into the earliest gap.
-// Returns {timeStart, timeFinish} or null if the worker has no prior assignments.
-function smartDefaultTimes(workerCol, machName) {
+// Fill the next time slot for a worker on a specific machine using existing blocks on that machine.
+// Returns {timeStart, timeFinish} or null if no existing blocks found.
+function smartDefaultTimes(workerCol, machName, machRow) {
+    const allBlocks = [];
     const existing = workerAssignments[workerCol];
-    if (!existing || !existing.length) return null;
-    const validTimes = existing.filter(function(a) { return a.timeFinish && a.timeFinish !== '--:--'; });
-    if (!validTimes.length) return null;
-    const finishes = validTimes.map(function(a) { return a.timeFinish; }).sort();
+    if (existing) {
+        const primary = existing.find(function(a) { return a.machineName === machName; });
+        if (primary && primary.timeFinish && primary.timeFinish !== '--:--') {
+            allBlocks.push({ timeStart: primary.timeStart, timeFinish: primary.timeFinish });
+        }
+    }
+    const extras = (workerExtraTimes[machRow + '-' + workerCol] || []);
+    extras.forEach(function(b) {
+        if (b.timeFinish && b.timeFinish !== '--:--') {
+            allBlocks.push({ timeStart: b.timeStart, timeFinish: b.timeFinish });
+        }
+    });
+    if (!allBlocks.length) return null;
+    const finishes = allBlocks.map(function(b) { return b.timeFinish; }).sort();
     const newStart = finishes[0];
-    const laterStarts = existing
-        .map(function(a) { return a.timeStart; })
+    const laterStarts = allBlocks
+        .map(function(b) { return b.timeStart; })
         .filter(function(t) { return t && t !== '--:--' && t > newStart; })
         .sort();
     const newFinish = laterStarts.length ? laterStarts[0] : defaultFinish(machName);
@@ -474,11 +485,6 @@ function renderScheduleInterface() {
                     if (extraContainer) extraContainer.style.display = 'block';
                     const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
-                    const smart = smartDefaultTimes(workerCol, machName);
-                    if (smart) {
-                        if (tsEl) tsEl.value = smart.timeStart;
-                        if (tfEl) tfEl.value = smart.timeFinish;
-                    }
                     const ts = tsEl ? tsEl.value : '--:--';
                     const tf = tfEl ? tfEl.value : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
@@ -525,10 +531,12 @@ function renderScheduleInterface() {
                 const workerCol = parseInt(this.dataset.workerCol);
                 const mach      = machines.find(function(m) { return m.row === machRow; });
                 const key       = machRow + '-' + workerCol;
+                const machName  = mach ? mach.name : '';
                 if (!workerExtraTimes[key]) workerExtraTimes[key] = [];
+                const smart = smartDefaultTimes(workerCol, machName, machRow);
                 workerExtraTimes[key].push({
-                    timeStart:  defaultStart(mach ? mach.name : ''),
-                    timeFinish: defaultFinish(mach ? mach.name : '')
+                    timeStart:  smart ? smart.timeStart  : defaultStart(machName),
+                    timeFinish: smart ? smart.timeFinish : defaultFinish(machName)
                 });
                 renderWorkerExtraTimes(machRow, workerCol);  // calls syncExtraBlockBadges internally
             });
