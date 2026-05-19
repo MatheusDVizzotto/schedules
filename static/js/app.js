@@ -565,6 +565,7 @@ function renderScheduleInterface() {
             });
         });
     });
+    updateWorkerAvailability();
 }
 
 function renderWorkerExtraTimes(machineRow, workerCol) {
@@ -658,6 +659,7 @@ function renderWorkersList(machine) {
                          ' data-worker-col="' + worker.col + '">' +
                   '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
                     '<strong>' + escapeHtml(worker.name) + '</strong>' +
+                    '<span class="worker-hours-badge badge ms-1" data-worker-col="' + worker.col + '" style="background-color:#e2e3e5;color:#41464b;">8.0h free</span>' +
                     '<span id="assignment-badge-' + worker.col + '"></span>' +
                   '</label>' +
                 '</div>' +
@@ -886,6 +888,49 @@ function updateAssignmentBadges() {
     workers.forEach(function(worker) {
         document.querySelectorAll('#assignment-badge-' + worker.col).forEach(function(el) {
             el.innerHTML = getAssignmentBadge(worker.col);
+        });
+    });
+    updateWorkerAvailability();
+}
+
+function parseTimeToMinutes(t) {
+    if (!t || t === '--:--') return 0;
+    const parts = t.split(':');
+    return parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+}
+
+function calcWorkerMinutes(workerCol) {
+    var total = 0;
+    (workerAssignments[workerCol] || []).forEach(function(a) {
+        const s = parseTimeToMinutes(a.timeStart);
+        const f = parseTimeToMinutes(a.timeFinish);
+        if (f > s) total += f - s;
+    });
+    return total;
+}
+
+function updateWorkerAvailability() {
+    workers.forEach(function(worker) {
+        const usedMins = calcWorkerMinutes(worker.col);
+        const freeMins = Math.max(0, 480 - usedMins);
+        const freeHrs  = (freeMins / 60).toFixed(1);
+        const blocked  = usedMins >= 450; // 7.5 hrs threshold
+
+        document.querySelectorAll('.worker-hours-badge[data-worker-col="' + worker.col + '"]').forEach(function(el) {
+            el.textContent = freeHrs + 'h free';
+            el.style.backgroundColor = blocked ? '#f8d7da' : '#e2e3e5';
+            el.style.color           = blocked ? '#842029' : '#41464b';
+        });
+
+        document.querySelectorAll('.worker-checkbox[data-worker-col="' + worker.col + '"]').forEach(function(cb) {
+            if (!cb.checked) {
+                cb.disabled = blocked;
+                const item = cb.closest('.worker-item');
+                if (item) item.style.opacity = blocked ? '0.45' : '';
+            } else {
+                const item = cb.closest('.worker-item');
+                if (item) item.style.opacity = '';
+            }
         });
     });
 }
