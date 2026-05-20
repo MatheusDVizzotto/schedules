@@ -144,10 +144,11 @@ class RacksHandler:
     # Stock
     # ------------------------------------------------------------------
 
-    def get_stock(self) -> list[dict]:
+    def get_stock(self, racks: list[dict] | None = None) -> list[dict]:
         """Return all stock items with computed qty_on_hand from bays."""
         ws = self._ensure_stock_sheet()
-        racks = self.get_racks()
+        if racks is None:
+            racks = self.get_racks()
         items = []
         for row in ws.iter_rows(min_row=2, values_only=True):
             if all(v is None for v in row):
