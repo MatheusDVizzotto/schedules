@@ -74,7 +74,7 @@ def get_excel_handler():
 _cache_lock = threading.Lock()
 _cached_handler = None
 _cached_at = 0.0
-CACHE_TTL = 60  # seconds
+CACHE_TTL = 30  # seconds
 
 
 def get_cached_handler():
@@ -100,6 +100,48 @@ def invalidate_cache():
             _cached_handler.workbook = None
         _cached_handler = None
         _cached_at = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Racks workbook cache — same pattern as the schedule cache above.
+# ---------------------------------------------------------------------------
+
+_racks_lock = threading.Lock()
+_cached_racks_handler = None
+_cached_racks_at = 0.0
+RACKS_CACHE_TTL = 30  # seconds
+
+
+def get_cached_racks_handler():
+    """Return a loaded RacksHandler, re-downloading only when stale."""
+    global _cached_racks_handler, _cached_racks_at
+    with _racks_lock:
+        now = _time.monotonic()
+        if _cached_racks_handler is None or (now - _cached_racks_at) > RACKS_CACHE_TTL:
+            from racks_handler import RacksHandler
+            h = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+            h.load()
+            if _cached_racks_handler is not None:
+                _cached_racks_handler.workbook = None
+            _cached_racks_handler = h
+            _cached_racks_at = now
+        return _cached_racks_handler
+
+
+def get_rack_handler():
+    """Return a fresh RacksHandler (not loaded). Use for write operations."""
+    from racks_handler import RacksHandler
+    return RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+
+
+def invalidate_racks_cache():
+    """Force the next rack read to re-download from Google Drive."""
+    global _cached_racks_handler, _cached_racks_at
+    with _racks_lock:
+        if _cached_racks_handler is not None:
+            _cached_racks_handler.workbook = None
+        _cached_racks_handler = None
+        _cached_racks_at = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -457,12 +499,9 @@ def get_schedule(date_str):
 @login_required
 def get_racks():
     try:
-        from racks_handler import RacksHandler
-        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
-        handler.load()
+        handler   = get_cached_racks_handler()
         racks     = handler.get_racks()
         locations = handler.get_locations()
-        handler.close()
         return jsonify({'success': True, 'racks': racks, 'locations': locations})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -475,11 +514,11 @@ def save_racks():
         data = request.get_json()
         if data is None or 'racks' not in data:
             return jsonify({'success': False, 'error': 'racks payload is required'}), 400
-        from racks_handler import RacksHandler
-        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler = get_rack_handler()
         handler.load()
         handler.save_racks(data['racks'])
         handler.close()
+        invalidate_racks_cache()
         return jsonify({'success': True, 'message': 'Racks saved successfully'})
     except Exception as e:
         import traceback
@@ -491,12 +530,9 @@ def save_racks():
 @login_required
 def get_stock_dashboard():
     try:
-        from racks_handler import RacksHandler
-        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
-        handler.load()
-        stock = handler.get_stock()
-        bays  = handler.get_racks()
-        handler.close()
+        handler = get_cached_racks_handler()
+        bays    = handler.get_racks()
+        stock   = handler.get_stock(racks=bays)
         return jsonify({'success': True, 'stock': stock, 'bays': bays})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -506,11 +542,8 @@ def get_stock_dashboard():
 @login_required
 def get_stock():
     try:
-        from racks_handler import RacksHandler
-        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
-        handler.load()
-        items = handler.get_stock()
-        handler.close()
+        handler = get_cached_racks_handler()
+        items   = handler.get_stock()
         return jsonify({'success': True, 'items': items})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -523,11 +556,11 @@ def save_stock():
         data = request.get_json()
         if data is None or 'items' not in data:
             return jsonify({'success': False, 'error': 'items payload is required'}), 400
-        from racks_handler import RacksHandler
-        handler = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler = get_rack_handler()
         handler.load()
         handler.save_stock(data['items'])
         handler.close()
+        invalidate_racks_cache()
         return jsonify({'success': True})
     except Exception as e:
         import traceback
@@ -542,11 +575,11 @@ def add_rack_location():
         data = request.get_json()
         if not data or not data.get('name'):
             return jsonify({'success': False, 'error': 'name is required'}), 400
-        from racks_handler import RacksHandler
-        handler   = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+        handler   = get_rack_handler()
         handler.load()
         locations = handler.add_location(data['name'].strip())
         handler.close()
+        invalidate_racks_cache()
         return jsonify({'success': True, 'locations': locations})
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
