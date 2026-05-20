@@ -74,7 +74,7 @@ def get_excel_handler():
 _cache_lock = threading.Lock()
 _cached_handler = None
 _cached_at = 0.0
-CACHE_TTL = 30  # seconds
+CACHE_TTL = 120  # seconds
 
 
 def get_cached_handler():
@@ -109,7 +109,7 @@ def invalidate_cache():
 _racks_lock = threading.Lock()
 _cached_racks_handler = None
 _cached_racks_at = 0.0
-RACKS_CACHE_TTL = 30  # seconds
+RACKS_CACHE_TTL = 120  # seconds
 
 
 def get_cached_racks_handler():
