@@ -294,9 +294,9 @@ class ExcelHandlerGDrive:
         '':   '',
     }
     PROF_FILL = {
-        'MR': PatternFill(start_color='00B050', end_color='00B050', fill_type='solid'),  # green
+        'MR': PatternFill(start_color='C6EFCE', end_color='C6EFCE', fill_type='solid'),  # pastel green
         'C':  PatternFill(start_color='FFFF00', end_color='FFFF00', fill_type='solid'),  # yellow
-        'T':  PatternFill(start_color='FFC000', end_color='FFC000', fill_type='solid'),  # orange
+        'T':  PatternFill(start_color='FCE4D6', end_color='FCE4D6', fill_type='solid'),  # pastel orange
         '':   PatternFill(fill_type=None),                                                # white/none
     }
     PROF_FONT = {
