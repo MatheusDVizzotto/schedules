@@ -384,6 +384,10 @@ class ExcelHandlerGDrive:
                 print(f"  Cleared and recreated sheet: {sheet_name!r}")
             else:
                 sheet = self.workbook.create_sheet(sheet_name)
+                # Remove the openpyxl default "Sheet" tab that exists in a
+                # freshly created monthly workbook — now that we have a real sheet.
+                if 'Sheet' in self.workbook.sheetnames:
+                    self.workbook.remove(self.workbook['Sheet'])
                 print(f"  Creating new sheet: {sheet_name!r}")
             self._write_day_sheet(sheet, date, schedule_data, master_layout)
         else:
