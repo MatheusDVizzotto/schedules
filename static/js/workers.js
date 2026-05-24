@@ -6,11 +6,18 @@ let proficiencies = {};   // {row: {col: value}}  — int keys from API
 let changes       = {};   // {row: {col: newValue}} — pending edits
 
 const LEVELS = [
-    { value: 'MR', label: 'Main Role', badge: 'bg-primary' },
-    { value: 'C',  label: 'Competent', badge: 'bg-success' },
-    { value: 'T',  label: 'Trainee',   badge: 'bg-warning text-dark' },
-    { value: '',   label: 'None',      badge: 'bg-light text-dark border' },
+    { value: 'MR', label: 'Main Role' },
+    { value: 'C',  label: 'Competent' },
+    { value: 'T',  label: 'Trainee'   },
+    { value: '',   label: 'None'      },
 ];
+
+const PROF_COLORS = {
+    'MR': '#C6EFCE',  // pastel green  — matches Excel
+    'C':  '#FFFF00',  // yellow        — matches Excel
+    'T':  '#FCE4D6',  // pastel orange — matches Excel
+    '':   '',         // white / no fill
+};
 
 // Map any raw spreadsheet value → our canonical value
 // Add entries here if your sheet uses different codes
@@ -111,6 +118,7 @@ function renderBody() {
             const td = document.createElement('td');
             td.className = 'proficiency-cell text-center align-middle';
             td.innerHTML = renderProficiencySelect(machine.row, worker.col, current);
+            updateCellStyle(td, current);
             tr.appendChild(td);
 
             // Listen for changes
@@ -163,12 +171,11 @@ function getCurrentValue(machineRow, workerCol) {
 }
 
 function updateCellStyle(td, value) {
+    td.style.backgroundColor = PROF_COLORS[value] !== undefined ? PROF_COLORS[value] : '';
     const select = td.querySelector('select');
-    select.className = 'form-select form-select-sm proficiency-select';
-    if (value === 'MR') select.classList.add('border-primary', 'text-primary');
-    else if (value === 'C')  select.classList.add('border-success', 'text-success');
-    else if (value === 'T')  select.classList.add('border-warning');
-    td.classList.toggle('table-warning', Object.keys(changes).length > 0);
+    if (select) {
+        select.style.backgroundColor = 'transparent';
+    }
 }
 
 function updateSaveButton() {
