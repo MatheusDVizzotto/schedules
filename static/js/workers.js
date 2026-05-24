@@ -171,10 +171,10 @@ function getCurrentValue(machineRow, workerCol) {
 }
 
 function updateCellStyle(td, value) {
-    td.style.backgroundColor = PROF_COLORS[value] !== undefined ? PROF_COLORS[value] : '';
+    td.style.backgroundColor = '';
     const select = td.querySelector('select');
     if (select) {
-        select.style.backgroundColor = 'transparent';
+        select.style.backgroundColor = PROF_COLORS[value] !== undefined ? PROF_COLORS[value] : '';
     }
 }
 
