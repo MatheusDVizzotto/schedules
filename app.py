@@ -32,6 +32,10 @@ app.register_blueprint(auth_bp)
 deleted_workers: set = set()
 DELETED_WORKERS_FILE = 'deleted_workers.json'
 
+# Absence records: {worker_name: [{date_from, date_to, reason}, ...]}
+worker_absences: dict = {}
+ABSENCES_FILE = 'worker_absences.json'
+
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -56,6 +60,25 @@ def save_deleted_workers():
             json.dump(list(deleted_workers), f)
     except IOError as e:
         print(f"Warning: could not save {DELETED_WORKERS_FILE}: {e}")
+
+
+def load_absences():
+    global worker_absences
+    if os.path.exists(ABSENCES_FILE):
+        try:
+            with open(ABSENCES_FILE, 'r') as f:
+                worker_absences = json.load(f)
+        except (json.JSONDecodeError, IOError) as e:
+            print(f"Warning: could not load {ABSENCES_FILE}: {e}")
+            worker_absences = {}
+
+
+def save_absences():
+    try:
+        with open(ABSENCES_FILE, 'w') as f:
+            json.dump(worker_absences, f)
+    except IOError as e:
+        print(f"Warning: could not save {ABSENCES_FILE}: {e}")
 
 
 def get_excel_handler():
@@ -379,6 +402,46 @@ def restore_worker():
 @app.route('/api/workers/deleted', methods=['GET'])
 def get_deleted_workers():
     return jsonify({'success': True, 'workers': list(deleted_workers)})
+
+
+@app.route('/api/workers/absences', methods=['GET'])
+def get_worker_absences():
+    return jsonify({'success': True, 'absences': worker_absences})
+
+
+@app.route('/api/workers/absence/add', methods=['POST'])
+def add_worker_absence():
+    data      = request.get_json() or {}
+    name      = str(data.get('worker_name', '')).strip()
+    date_from = str(data.get('date_from', '')).strip()
+    date_to   = str(data.get('date_to', '')).strip()
+    reason    = str(data.get('reason', '')).strip()
+    if not name or not date_from or not date_to:
+        return jsonify({'success': False, 'error': 'worker_name, date_from and date_to are required'}), 400
+    if date_from > date_to:
+        return jsonify({'success': False, 'error': 'date_from must be on or before date_to'}), 400
+    if name not in worker_absences:
+        worker_absences[name] = []
+    worker_absences[name].append({'date_from': date_from, 'date_to': date_to, 'reason': reason})
+    save_absences()
+    return jsonify({'success': True})
+
+
+@app.route('/api/workers/absence/remove', methods=['POST'])
+def remove_worker_absence():
+    data = request.get_json() or {}
+    name = str(data.get('worker_name', '')).strip()
+    idx  = data.get('index')
+    if name not in worker_absences or idx is None:
+        return jsonify({'success': False, 'error': 'Not found'}), 404
+    try:
+        worker_absences[name].pop(int(idx))
+        if not worker_absences[name]:
+            del worker_absences[name]
+        save_absences()
+        return jsonify({'success': True})
+    except (IndexError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid index'}), 400
 
 
 @app.route('/api/workers/permanent-delete', methods=['POST'])
@@ -767,6 +830,7 @@ def debug_save_test():
 
 if __name__ == '__main__':
     load_deleted_workers()
+    load_absences()
     print("=" * 60)
     print("Machine Schedule Manager — Google Drive Edition")
     print("=" * 60)

@@ -1,6 +1,8 @@
 // static/js/admin.js
 
 var _permanentDeleteName = null;
+var _absenceWorkerName   = null;
+var _absences            = {};   // {workerName: [{date_from, date_to, reason}, ...]}
 
 document.addEventListener('DOMContentLoaded', function () {
     loadWorkers();
@@ -13,21 +15,26 @@ document.addEventListener('DOMContentLoaded', function () {
     document.getElementById('confirmPermanentDeleteBtn').addEventListener('click', function() {
         if (_permanentDeleteName) permanentDeleteWorker(_permanentDeleteName);
     });
+
+    document.getElementById('confirmAbsenceBtn').addEventListener('click', saveAbsence);
 });
 
 // ── Load workers ──────────────────────────────────────────────────────────────
 
 async function loadWorkers() {
     try {
-        const [activeRes, deletedRes] = await Promise.all([
+        const [activeRes, deletedRes, absencesRes] = await Promise.all([
             fetch('/api/workers'),
             fetch('/api/workers/deleted'),
+            fetch('/api/workers/absences'),
         ]);
-        const activeData  = await activeRes.json();
-        const deletedData = await deletedRes.json();
+        const activeData   = await activeRes.json();
+        const deletedData  = await deletedRes.json();
+        const absencesData = await absencesRes.json();
 
-        if (activeData.success)  renderActiveWorkers(activeData.workers);
-        if (deletedData.success) renderDeletedWorkers(deletedData.workers);
+        if (absencesData.success) _absences = absencesData.absences;
+        if (activeData.success)   renderActiveWorkers(activeData.workers);
+        if (deletedData.success)  renderDeletedWorkers(deletedData.workers);
     } catch (err) {
         showListError('activeWorkersList',  'Failed to load: ' + err.message);
         showListError('deletedWorkersList', 'Failed to load: ' + err.message);
@@ -46,18 +53,41 @@ function renderActiveWorkers(workers) {
     }
 
     list.innerHTML = workers.map(function(w) {
-        const safe = escapeHtml(w.name);
+        const safe     = escapeHtml(w.name);
+        const absences = _absences[w.name] || [];
+
+        var absenceHtml = '';
+        if (absences.length) {
+            absenceHtml = '<div class="mt-1 ms-4">';
+            absences.forEach(function(a, idx) {
+                absenceHtml +=
+                    '<span class="badge bg-warning text-dark me-1">' +
+                      '<i class="fas fa-calendar-minus me-1"></i>' +
+                      escapeHtml(a.date_from) + ' → ' + escapeHtml(a.date_to) +
+                      (a.reason ? ' — ' + escapeHtml(a.reason) : '') +
+                    '</span>' +
+                    '<button class="btn btn-xs btn-link text-danger p-0 me-2" style="font-size:0.75rem;" ' +
+                            'onclick="removeAbsence(\'' + safe + '\',' + idx + ')" title="Remove absence">' +
+                      '<i class="fas fa-times"></i>' +
+                    '</button>';
+            });
+            absenceHtml += '</div>';
+        }
+
         return (
-            '<li class="list-group-item d-flex justify-content-between align-items-center gap-2">' +
-              '<span><i class="fas fa-user text-primary me-2"></i>' + safe + '</span>' +
-              '<div class="d-flex gap-1">' +
-                '<button class="btn btn-sm btn-outline-danger" onclick="removeWorker(\'' + safe + '\')">' +
-                  '<i class="fas fa-user-slash"></i> Remove' +
-                '</button>' +
-                '<button class="btn btn-sm btn-danger" onclick="confirmPermanentDelete(\'' + safe + '\')">' +
-                  '<i class="fas fa-trash"></i> Delete' +
-                '</button>' +
+            '<li class="list-group-item">' +
+              '<div class="d-flex justify-content-between align-items-center gap-2">' +
+                '<span><i class="fas fa-user text-primary me-2"></i>' + safe + '</span>' +
+                '<div class="d-flex gap-1">' +
+                  '<button class="btn btn-sm btn-outline-warning" onclick="openAbsenceModal(\'' + safe + '\')">' +
+                    '<i class="fas fa-calendar-minus"></i> Remove' +
+                  '</button>' +
+                  '<button class="btn btn-sm btn-danger" onclick="confirmPermanentDelete(\'' + safe + '\')">' +
+                    '<i class="fas fa-trash"></i> Delete' +
+                  '</button>' +
+                '</div>' +
               '</div>' +
+              absenceHtml +
             '</li>'
         );
     }).join('');
@@ -137,23 +167,71 @@ async function addWorker() {
     }
 }
 
-// ── Remove worker (soft-delete) ───────────────────────────────────────────────
+// ── Absence modal ─────────────────────────────────────────────────────────────
 
-async function removeWorker(name) {
-    if (!confirm('Remove "' + name + '" from future schedules?\n\nThey can be restored later.')) return;
+function openAbsenceModal(name) {
+    _absenceWorkerName = name;
+    document.getElementById('absenceWorkerName').textContent = name;
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('absenceDateFrom').value = today;
+    document.getElementById('absenceDateTo').value   = today;
+    document.getElementById('absenceReason').value   = '';
+    document.getElementById('absenceModalFeedback').innerHTML = '';
+    new bootstrap.Modal(document.getElementById('absenceModal')).show();
+}
+
+async function saveAbsence() {
+    const dateFrom = document.getElementById('absenceDateFrom').value;
+    const dateTo   = document.getElementById('absenceDateTo').value;
+    const reason   = document.getElementById('absenceReason').value.trim();
+    const fb       = document.getElementById('absenceModalFeedback');
+
+    if (!dateFrom || !dateTo) {
+        fb.innerHTML = '<div class="alert alert-danger py-2 mb-0">Please fill in both dates.</div>';
+        return;
+    }
+    if (dateFrom > dateTo) {
+        fb.innerHTML = '<div class="alert alert-danger py-2 mb-0">"From" date must be on or before "To" date.</div>';
+        return;
+    }
+
+    const btn  = document.getElementById('confirmAbsenceBtn');
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
     try {
-        const res  = await fetch('/api/workers/delete', {
+        const res  = await fetch('/api/workers/absence/add', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ worker_name: name }),
+            body:    JSON.stringify({ worker_name: _absenceWorkerName, date_from: dateFrom, date_to: dateTo, reason: reason }),
         });
         const data = await res.json();
         if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('absenceModal')).hide();
             loadWorkers();
         } else {
-            alert('Error: ' + data.error);
+            fb.innerHTML = '<div class="alert alert-danger py-2 mb-0">' + escapeHtml(data.error) + '</div>';
         }
+    } catch (err) {
+        fb.innerHTML = '<div class="alert alert-danger py-2 mb-0">Network error: ' + escapeHtml(err.message) + '</div>';
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
+}
+
+async function removeAbsence(workerName, idx) {
+    if (!confirm('Remove this absence record?')) return;
+    try {
+        const res  = await fetch('/api/workers/absence/remove', {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ worker_name: workerName, index: idx }),
+        });
+        const data = await res.json();
+        if (data.success) loadWorkers();
+        else alert('Error: ' + data.error);
     } catch (err) {
         alert('Network error: ' + err.message);
     }

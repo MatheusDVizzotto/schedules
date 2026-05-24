@@ -3,6 +3,7 @@
 let machines      = [];   // [{row, name}, ...]
 let workers       = [];   // [{col, col_letter, name}, ...]
 let proficiencies = {};   // {"row": {"col": "value"}}
+let workerAbsences = {}; // {workerName: [{date_from, date_to, reason}, ...]}
 
 // Machines selected in Step 1 (their row numbers)
 let selectedMachineRows = new Set();
@@ -47,12 +48,17 @@ document.addEventListener('DOMContentLoaded', function () {
 
 async function loadData() {
     try {
-        const response = await fetch('/api/workers/all');
-        const data = await response.json();
+        const [allRes, absRes] = await Promise.all([
+            fetch('/api/workers/all'),
+            fetch('/api/workers/absences'),
+        ]);
+        const data   = await allRes.json();
+        const absData = await absRes.json();
         if (data.success) {
-            machines      = data.machines;
-            workers       = data.workers;
-            proficiencies = data.proficiencies;
+            machines       = data.machines;
+            workers        = data.workers;
+            proficiencies  = data.proficiencies;
+            workerAbsences = absData.success ? absData.absences : {};
             renderMachineFilter();
         } else {
             showFilterError('Error loading data: ' + data.error);
@@ -641,6 +647,12 @@ function syncExtraBlockBadges(machineRow, workerCol) {
     updateAssignmentBadges();
 }
 
+function getActiveAbsence(workerName) {
+    const date     = document.getElementById('scheduleDate').value;
+    const absences = workerAbsences[workerName] || [];
+    return absences.find(function(a) { return date >= a.date_from && date <= a.date_to; }) || null;
+}
+
 function renderWorkersList(machine) {
     let html = '<div class="worker-list">';
     workers.forEach(function(worker) {
@@ -649,16 +661,27 @@ function renderWorkersList(machine) {
         const badgeCls = getProficiencyBadgeClass(prof);
         const defStart = defaultStart(machine.name);
         const defEnd   = defaultFinish(machine.name);
+        const absence  = getActiveAbsence(worker.name);
+
+        const absenceBadge = absence
+            ? '<span class="badge ms-1" style="background:#ffc107;color:#000;" title="Absent: ' +
+              escapeHtml(absence.date_from) + ' to ' + escapeHtml(absence.date_to) + '">' +
+              '<i class="fas fa-calendar-minus me-1"></i>' +
+              escapeHtml(absence.reason || 'Absent') + '</span>'
+            : '';
+
         html +=
-            '<div class="worker-item mb-2">' +
+            '<div class="worker-item mb-2' + (absence ? ' opacity-75' : '') + '">' +
               '<div class="d-flex align-items-center justify-content-between">' +
                 '<div class="form-check">' +
                   '<input class="form-check-input worker-checkbox" type="checkbox"' +
                          ' id="worker-' + machine.row + '-' + worker.col + '"' +
                          ' data-machine-row="' + machine.row + '"' +
-                         ' data-worker-col="' + worker.col + '">' +
+                         ' data-worker-col="' + worker.col + '"' +
+                         (absence ? ' disabled title="Worker is absent"' : '') + '>' +
                   '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
                     '<strong>' + escapeHtml(worker.name) + '</strong>' +
+                    absenceBadge +
                     '<span class="worker-hours-badge badge ms-1" data-worker-col="' + worker.col + '" style="background-color:#e2e3e5;color:#41464b;">8.0h free</span>' +
                     '<span id="assignment-badge-' + worker.col + '"></span>' +
                   '</label>' +
