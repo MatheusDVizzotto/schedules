@@ -18,6 +18,7 @@ import time as _time
 
 from config import (
     GOOGLE_DRIVE_FILE_ID, GOOGLE_DRIVE_FILENAME, USE_FILE_ID,
+    MATRIX_FILE_ID, MATRIX_FILENAME, SCHEDULE_FOLDER_ID,
     SECRET_KEY, DEBUG, HOST, PORT
 )
 from auth import auth_bp, login_required
@@ -58,11 +59,11 @@ def save_deleted_workers():
 
 
 def get_excel_handler():
-    """Return a fresh ExcelHandlerGDrive (not loaded). Use for write operations."""
+    """Return a fresh ExcelHandlerGDrive pointing to the Matrix file (not loaded)."""
     from excel_handler_gdrive import ExcelHandlerGDrive
-    if USE_FILE_ID:
-        return ExcelHandlerGDrive(file_id=GOOGLE_DRIVE_FILE_ID)
-    return ExcelHandlerGDrive(filename=GOOGLE_DRIVE_FILENAME)
+    if MATRIX_FILE_ID:
+        return ExcelHandlerGDrive(file_id=MATRIX_FILE_ID)
+    return ExcelHandlerGDrive(filename=MATRIX_FILENAME)
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +143,99 @@ def invalidate_racks_cache():
             _cached_racks_handler.workbook = None
         _cached_racks_handler = None
         _cached_racks_at = 0.0
+
+
+# ---------------------------------------------------------------------------
+# Monthly schedule file management
+# Each month gets its own Google Drive file: "schedule MM/YY"
+# (e.g. "schedule 05/26" for May 2026).
+# ---------------------------------------------------------------------------
+
+_monthly_file_ids: dict = {}   # "MM/YY" → file_id
+_monthly_file_lock = threading.Lock()
+_schedule_folder_id: str | None = None
+_schedule_folder_resolved = False
+
+
+def _get_schedule_folder() -> str | None:
+    """Return the Drive folder ID for monthly schedule files (resolved once)."""
+    global _schedule_folder_id, _schedule_folder_resolved
+    if _schedule_folder_resolved:
+        return _schedule_folder_id
+    _schedule_folder_resolved = True
+    if SCHEDULE_FOLDER_ID:
+        _schedule_folder_id = SCHEDULE_FOLDER_ID
+        return _schedule_folder_id
+    # Fall back: same folder as the Matrix file
+    try:
+        from google_drive_handler import GoogleDriveHandler
+        gdrive = GoogleDriveHandler()
+        fid    = MATRIX_FILE_ID or gdrive.get_file_id_by_name(MATRIX_FILENAME)
+        if fid:
+            meta    = gdrive.get_file_metadata(fid)
+            parents = (meta or {}).get('parents', [])
+            _schedule_folder_id = parents[0] if parents else None
+    except Exception as e:
+        print(f"Warning: could not resolve schedule folder: {e}")
+        _schedule_folder_id = None
+    return _schedule_folder_id
+
+
+def get_or_create_monthly_schedule_file(date) -> str:
+    """Return the file_id for 'schedule MM/YY', creating the file if needed."""
+    import io
+    import openpyxl as _xl
+    month_key = date.strftime('%m/%y')    # e.g. "05/26"
+    filename  = f'schedule {month_key}'   # e.g. "schedule 05/26"
+    with _monthly_file_lock:
+        if month_key in _monthly_file_ids:
+            return _monthly_file_ids[month_key]
+        from google_drive_handler import GoogleDriveHandler
+        gdrive    = GoogleDriveHandler()
+        folder_id = _get_schedule_folder()
+        file_id   = gdrive.get_file_id_by_name(filename, folder_id=folder_id)
+        if not file_id:
+            wb = _xl.Workbook()
+            wb.remove(wb.active)   # remove the default blank sheet
+            buf = io.BytesIO()
+            wb.save(buf)
+            buf.seek(0)
+            file_id = gdrive.create_file(filename, buf, folder_id=folder_id)
+            print(f"  Created monthly schedule file: {filename!r} → {file_id}")
+        _monthly_file_ids[month_key] = file_id
+        return file_id
+
+
+# Per-month schedule cache — mirrors the master-file cache pattern.
+_sched_cache: dict = {}   # "MM/YY" → (handler, timestamp)
+_sched_cache_lock = threading.Lock()
+SCHED_CACHE_TTL = 120  # seconds
+
+
+def get_cached_schedule_handler(date):
+    """Return a loaded handler for the monthly schedule file, re-downloading when stale."""
+    from excel_handler_gdrive import ExcelHandlerGDrive
+    month_key = date.strftime('%m/%y')
+    with _sched_cache_lock:
+        now   = _time.monotonic()
+        entry = _sched_cache.get(month_key)
+        if entry is None or (now - entry[1]) > SCHED_CACHE_TTL:
+            file_id = get_or_create_monthly_schedule_file(date)
+            h       = ExcelHandlerGDrive(file_id=file_id)
+            h.load()
+            if entry is not None:
+                entry[0].workbook = None
+            _sched_cache[month_key] = (h, now)
+        return _sched_cache[month_key][0]
+
+
+def invalidate_schedule_cache(date):
+    """Force the next schedule read for this month to re-download."""
+    month_key = date.strftime('%m/%y')
+    with _sched_cache_lock:
+        entry = _sched_cache.pop(month_key, None)
+        if entry:
+            entry[0].workbook = None
 
 
 # ---------------------------------------------------------------------------
@@ -457,12 +551,17 @@ def save_schedule():
         if not schedule_data:
             return jsonify({'success': False, 'error': 'schedule list is empty'}), 400
 
-        handler = get_excel_handler()
+        # Read machine layout from the Matrix file for visual row formatting
+        master_layout = get_cached_handler().get_master_layout()
+
+        # Save into the monthly schedule file, creating it when it's a new month
+        from excel_handler_gdrive import ExcelHandlerGDrive
+        file_id = get_or_create_monthly_schedule_file(schedule_date)
+        handler = ExcelHandlerGDrive(file_id=file_id)
         handler.load()
-        handler.save_schedule_visual(schedule_date, schedule_data)
-        file_id = handler.file_id
+        handler.save_schedule_visual(schedule_date, schedule_data, master_layout)
         handler.close()
-        invalidate_cache()
+        invalidate_schedule_cache(schedule_date)
 
         sheets_url = f'https://docs.google.com/spreadsheets/d/{file_id}/edit'
         return jsonify({
@@ -484,8 +583,9 @@ def get_schedule(date_str):
     except ValueError:
         return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
     try:
-        handler = get_cached_handler()
-        schedule = handler.get_schedule(datetime.strptime(date_str, '%Y-%m-%d').date())
+        date     = datetime.strptime(date_str, '%Y-%m-%d').date()
+        handler  = get_cached_schedule_handler(date)
+        schedule = handler.get_schedule(date)
         return jsonify({'success': True, 'schedule': schedule})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -655,8 +755,7 @@ if __name__ == '__main__':
     print("=" * 60)
     print("Machine Schedule Manager — Google Drive Edition")
     print("=" * 60)
-    print(f"Mode    : {'File ID' if USE_FILE_ID else 'Filename'}")
-    print(f"Target  : {GOOGLE_DRIVE_FILE_ID if USE_FILE_ID else GOOGLE_DRIVE_FILENAME}")
+    print(f"Matrix  : {MATRIX_FILE_ID or MATRIX_FILENAME}")
     print()
     print("Testing Google Drive connection…")
     try:

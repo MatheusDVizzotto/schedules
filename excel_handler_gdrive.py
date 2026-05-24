@@ -317,7 +317,42 @@ class ExcelHandlerGDrive:
     # Schedule – save
     # ------------------------------------------------------------------
 
-    def save_schedule_visual(self, date, schedule_data: list[dict]):
+    def get_master_layout(self, sheet_name: str | None = None) -> list[dict]:
+        """
+        Return row layout info for every row in MACHINE_RANGES.
+        Used when writing day sheets into a separate monthly file that doesn't
+        contain the master sheet — the caller passes this layout so _write_day_sheet
+        can copy machine names, fill colours, row heights and bold flags correctly.
+
+        Each entry:
+          { main_row, kind, machine_name, fill_rgb, row_height, bold }
+        """
+        sheet    = self._active_sheet(sheet_name)
+        all_rows: set[int] = set()
+        for start, end in MACHINE_RANGES:
+            for r in range(start, end + 1):
+                all_rows.add(r)
+        result: list[dict] = []
+        if not MACHINE_RANGES:
+            return result
+        first_row = min(r[0] for r in MACHINE_RANGES)
+        last_row  = max(r[1] for r in MACHINE_RANGES)
+        for main_row in range(first_row, last_row + 1):
+            cell     = sheet.cell(row=main_row, column=1)
+            fill_rgb = None
+            if cell.fill and cell.fill.fill_type == 'solid' and cell.fill.fgColor:
+                fill_rgb = cell.fill.fgColor.rgb
+            result.append({
+                'main_row':     main_row,
+                'kind':         'machine' if main_row in all_rows else 'separator',
+                'machine_name': str(cell.value or '').strip(),
+                'fill_rgb':     fill_rgb,
+                'row_height':   sheet.row_dimensions[main_row].height,
+                'bold':         bool(cell.font and cell.font.bold),
+            })
+        return result
+
+    def save_schedule_visual(self, date, schedule_data: list[dict], master_layout: list[dict] | None = None):
         """
         Write assignments to the workbook and upload to Google Drive.
 
@@ -350,7 +385,7 @@ class ExcelHandlerGDrive:
             else:
                 sheet = self.workbook.create_sheet(sheet_name)
                 print(f"  Creating new sheet: {sheet_name!r}")
-            self._write_day_sheet(sheet, date, schedule_data)
+            self._write_day_sheet(sheet, date, schedule_data, master_layout)
         else:
             # SAME_SHEET — write yellow cells into the master sheet
             sheet = self._active_sheet()
@@ -421,7 +456,7 @@ class ExcelHandlerGDrive:
 
         print(f"  Written: {saved}  Skipped: {len(skipped)}")
 
-    def _write_day_sheet(self, sheet, date, schedule_data: list[dict]):
+    def _write_day_sheet(self, sheet, date, schedule_data: list[dict], master_layout: list[dict] | None = None):
         """
         Write a visual day-schedule sheet that exactly mirrors the Main sheet:
 
@@ -435,10 +470,9 @@ class ExcelHandlerGDrive:
         """
         sheet_name = date.strftime('%d-%m-%y') if hasattr(date, 'strftime') else str(date)
         date_str   = date.strftime('%d/%m/%y') if hasattr(date, 'strftime') else str(date)
-        main_sheet = self._active_sheet()           # read colours from Main
         time_slots = self._generate_time_slots()    # ['06:00', '06:30', …, '22:00']
-        no_fill   = PatternFill(fill_type=None)
-        bold_font = openpyxl.styles.Font(bold=True)
+        no_fill    = PatternFill(fill_type=None)
+        bold_font  = openpyxl.styles.Font(bold=True)
 
         # ── Build assignment lookup: machine_name → merged single entry ────
         # All workers on the same machine share one row.
@@ -495,51 +529,61 @@ class ExcelHandlerGDrive:
         sheet.row_dimensions[1].height = 20
 
         # ── Build ordered row list (mirrors Main sheet row order) ──────────
-        rows_to_render = []   # [(main_row, kind)]  kind = 'machine'|'separator'
-        ranges   = MACHINE_RANGES
-        all_rows = set()
-        for start, end in ranges:
-            for r in range(start, end + 1):
-                all_rows.add(r)
-
-        if ranges:
-            first_row = min(r[0] for r in ranges)
-            last_row  = max(r[1] for r in ranges)
-            for main_row in range(first_row, last_row + 1):
-                kind = 'machine' if main_row in all_rows else 'separator'
-                rows_to_render.append((main_row, kind))
+        # Each entry is a dict: {main_row, kind, machine_name, fill_rgb, row_height, bold}
+        if master_layout is not None:
+            rows_to_render = master_layout
+        else:
+            main_sheet = self._active_sheet()
+            all_rows: set[int] = set()
+            for start, end in MACHINE_RANGES:
+                for r in range(start, end + 1):
+                    all_rows.add(r)
+            rows_to_render = []
+            if MACHINE_RANGES:
+                first_row = min(r[0] for r in MACHINE_RANGES)
+                last_row  = max(r[1] for r in MACHINE_RANGES)
+                for main_row in range(first_row, last_row + 1):
+                    cell     = main_sheet.cell(row=main_row, column=1)
+                    fill_rgb = None
+                    if cell.fill and cell.fill.fill_type == 'solid' and cell.fill.fgColor:
+                        fill_rgb = cell.fill.fgColor.rgb
+                    rows_to_render.append({
+                        'main_row':     main_row,
+                        'kind':         'machine' if main_row in all_rows else 'separator',
+                        'machine_name': str(cell.value or '').strip(),
+                        'fill_rgb':     fill_rgb,
+                        'row_height':   main_sheet.row_dimensions[main_row].height,
+                        'bold':         bool(cell.font and cell.font.bold),
+                    })
 
         # ── Write one row per machine (or separator) ──────────────────────
         dest_row = 2
 
-        for main_row, kind in rows_to_render:
+        for row_info in rows_to_render:
+            kind       = row_info['kind']
+            fill_rgb   = row_info['fill_rgb']
+            row_height = row_info['row_height']
+            mname      = row_info['machine_name']
+            bold       = row_info['bold']
 
-            # Copy row fill colour from Main sheet column A
-            main_cell_a = main_sheet.cell(row=main_row, column=1)
-            src_fill    = main_cell_a.fill
-            if src_fill and src_fill.fill_type == 'solid' and src_fill.fgColor:
-                rgb      = src_fill.fgColor.rgb
-                row_fill = PatternFill(start_color=rgb, end_color=rgb, fill_type='solid')
-            else:
-                row_fill = no_fill
+            row_fill = (PatternFill(start_color=fill_rgb, end_color=fill_rgb, fill_type='solid')
+                        if fill_rgb else no_fill)
 
             if kind == 'separator':
                 sheet.cell(row=dest_row, column=1, value='').fill = row_fill
                 for i in range(len(time_slots)):
                     sheet.cell(row=dest_row, column=T_OFF + i, value='').fill = row_fill
-                sheet.row_dimensions[dest_row].height =                     main_sheet.row_dimensions[main_row].height or 8
+                sheet.row_dimensions[dest_row].height = row_height or 8
                 dest_row += 1
                 continue
 
             # ── Machine row: always exactly ONE row ────────────────────────
-            mname = str(main_cell_a.value or '').strip()
             entry = machine_entries.get(mname)   # None if unassigned
 
             # Col A — machine name
             a_cell = sheet.cell(row=dest_row, column=1, value=mname)
             a_cell.fill      = row_fill
-            a_cell.font      = openpyxl.styles.Font(
-                bold=bool(main_cell_a.font and main_cell_a.font.bold))
+            a_cell.font      = openpyxl.styles.Font(bold=bold)
             a_cell.alignment = Alignment(vertical='center', wrap_text=True)
             a_cell.border    = self.thin_border
 
@@ -638,7 +682,7 @@ class ExcelHandlerGDrive:
                         merged_cell.border    = self.thin_border
                         print(f"  ✓ {mname!r}  {band_start}→{band_finish}  {cell_text!r}")
 
-            sheet.row_dimensions[dest_row].height =                 main_sheet.row_dimensions[main_row].height or 15
+            sheet.row_dimensions[dest_row].height = row_height or 15
             dest_row += 1
 
         print(f"  ✓ Day sheet {date_str!r}: "

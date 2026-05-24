@@ -17,6 +17,15 @@ GOOGLE_DRIVE_FILE_ID   = os.environ.get('TEST_FILE_ID') or os.environ.get('GOOGL
 GOOGLE_DRIVE_FILENAME  = os.environ.get('GOOGLE_DRIVE_FILENAME', '1. General Schedule.xlsx')
 USE_FILE_ID            = True
 
+# Matrix file — machines, workers, and proficiency data live here.
+# When MATRIX_FILE_ID is not set the app looks for a file named MATRIX_FILENAME.
+MATRIX_FILE_ID  = os.environ.get('MATRIX_FILE_ID', '')
+MATRIX_FILENAME = os.environ.get('MATRIX_FILENAME', 'Matrix')
+
+# Folder where monthly schedule files ("schedule MM/YY") are created.
+# When empty the app uses the same folder as the Matrix file.
+SCHEDULE_FOLDER_ID = os.environ.get('SCHEDULE_FOLDER_ID', '')
+
 # ============================================================
 # EXCEL STRUCTURE — adjust to match your spreadsheet
 # ============================================================
