@@ -171,11 +171,10 @@ function getCurrentValue(machineRow, workerCol) {
 }
 
 function updateCellStyle(td, value) {
-    td.style.backgroundColor = '';
     const select = td.querySelector('select');
-    if (select) {
-        select.style.backgroundColor = PROF_COLORS[value] !== undefined ? PROF_COLORS[value] : '';
-    }
+    if (!select) return;
+    select.classList.remove('prof-bg-MR', 'prof-bg-C', 'prof-bg-T');
+    if (value) select.classList.add('prof-bg-' + value);
 }
 
 function updateSaveButton() {
