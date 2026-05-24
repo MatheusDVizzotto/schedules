@@ -32,9 +32,6 @@ app.register_blueprint(auth_bp)
 deleted_workers: set = set()
 DELETED_WORKERS_FILE = 'deleted_workers.json'
 
-# Absence records: {worker_name: [{date_from, date_to, reason}, ...]}
-worker_absences: dict = {}
-ABSENCES_FILE = 'worker_absences.json'
 
 
 # ---------------------------------------------------------------------------
@@ -62,23 +59,6 @@ def save_deleted_workers():
         print(f"Warning: could not save {DELETED_WORKERS_FILE}: {e}")
 
 
-def load_absences():
-    global worker_absences
-    if os.path.exists(ABSENCES_FILE):
-        try:
-            with open(ABSENCES_FILE, 'r') as f:
-                worker_absences = json.load(f)
-        except (json.JSONDecodeError, IOError) as e:
-            print(f"Warning: could not load {ABSENCES_FILE}: {e}")
-            worker_absences = {}
-
-
-def save_absences():
-    try:
-        with open(ABSENCES_FILE, 'w') as f:
-            json.dump(worker_absences, f)
-    except IOError as e:
-        print(f"Warning: could not save {ABSENCES_FILE}: {e}")
 
 
 def get_excel_handler():
@@ -406,7 +386,11 @@ def get_deleted_workers():
 
 @app.route('/api/workers/absences', methods=['GET'])
 def get_worker_absences():
-    return jsonify({'success': True, 'absences': worker_absences})
+    try:
+        absences = get_cached_handler().get_absences()
+        return jsonify({'success': True, 'absences': absences})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/workers/absence/add', methods=['POST'])
@@ -420,11 +404,17 @@ def add_worker_absence():
         return jsonify({'success': False, 'error': 'worker_name, date_from and date_to are required'}), 400
     if date_from > date_to:
         return jsonify({'success': False, 'error': 'date_from must be on or before date_to'}), 400
-    if name not in worker_absences:
-        worker_absences[name] = []
-    worker_absences[name].append({'date_from': date_from, 'date_to': date_to, 'reason': reason})
-    save_absences()
-    return jsonify({'success': True})
+    try:
+        handler  = get_excel_handler()
+        handler.load()
+        absences = handler.get_absences()
+        absences.setdefault(name, []).append({'date_from': date_from, 'date_to': date_to, 'reason': reason})
+        handler.save_absences(absences)
+        handler.close()
+        invalidate_cache()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/workers/absence/remove', methods=['POST'])
@@ -432,16 +422,26 @@ def remove_worker_absence():
     data = request.get_json() or {}
     name = str(data.get('worker_name', '')).strip()
     idx  = data.get('index')
-    if name not in worker_absences or idx is None:
-        return jsonify({'success': False, 'error': 'Not found'}), 404
+    if not name or idx is None:
+        return jsonify({'success': False, 'error': 'worker_name and index are required'}), 400
     try:
-        worker_absences[name].pop(int(idx))
-        if not worker_absences[name]:
-            del worker_absences[name]
-        save_absences()
+        handler  = get_excel_handler()
+        handler.load()
+        absences = handler.get_absences()
+        if name not in absences:
+            handler.close()
+            return jsonify({'success': False, 'error': 'Worker not found'}), 404
+        absences[name].pop(int(idx))
+        if not absences[name]:
+            del absences[name]
+        handler.save_absences(absences)
+        handler.close()
+        invalidate_cache()
         return jsonify({'success': True})
     except (IndexError, ValueError):
         return jsonify({'success': False, 'error': 'Invalid index'}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/workers/permanent-delete', methods=['POST'])
@@ -830,7 +830,6 @@ def debug_save_test():
 
 if __name__ == '__main__':
     load_deleted_workers()
-    load_absences()
     print("=" * 60)
     print("Machine Schedule Manager — Google Drive Edition")
     print("=" * 60)

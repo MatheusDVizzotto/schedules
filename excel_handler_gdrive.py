@@ -108,6 +108,42 @@ class ExcelHandlerGDrive:
             self.workbook = None
 
     # ------------------------------------------------------------------
+    # Absences  (stored in a hidden '_absences' sheet)
+    # ------------------------------------------------------------------
+
+    _ABSENCES_SHEET = '_absences'
+
+    def get_absences(self) -> dict:
+        """Return {worker_name: [{date_from, date_to, reason}, ...]} from the Matrix."""
+        if self._ABSENCES_SHEET not in self.workbook.sheetnames:
+            return {}
+        ws     = self.workbook[self._ABSENCES_SHEET]
+        result: dict = {}
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            if not row or not row[0]:
+                continue
+            name      = str(row[0]).strip()
+            date_from = str(row[1] or '').strip()
+            date_to   = str(row[2] or '').strip()
+            reason    = str(row[3] or '').strip()
+            result.setdefault(name, []).append(
+                {'date_from': date_from, 'date_to': date_to, 'reason': reason}
+            )
+        return result
+
+    def save_absences(self, absences: dict):
+        """Write absences to the hidden '_absences' sheet and upload to Google Drive."""
+        if self._ABSENCES_SHEET in self.workbook.sheetnames:
+            del self.workbook[self._ABSENCES_SHEET]
+        ws = self.workbook.create_sheet(self._ABSENCES_SHEET)
+        ws.sheet_state = 'hidden'
+        ws.append(['worker_name', 'date_from', 'date_to', 'reason'])
+        for name, records in absences.items():
+            for rec in records:
+                ws.append([name, rec.get('date_from', ''), rec.get('date_to', ''), rec.get('reason', '')])
+        self.save()
+
+    # ------------------------------------------------------------------
     # Sheet helpers
     # ------------------------------------------------------------------
 
