@@ -181,12 +181,10 @@ def _get_schedule_folder() -> str | None:
     return _schedule_folder_id
 
 
-def get_or_create_monthly_schedule_file(date) -> str:
-    """Return the file_id for 'schedule MM/YY', creating the file if needed."""
-    import io
-    import openpyxl as _xl
-    month_key = date.strftime('%m/%y')    # e.g. "05/26"
-    filename  = f'schedule {month_key}'   # e.g. "schedule 05/26"
+def _find_monthly_file_id(date) -> str | None:
+    """Return the Drive file_id for 'schedule MM/YY', or None if it doesn't exist yet."""
+    month_key = date.strftime('%m/%y')
+    filename  = f'schedule {month_key}'
     with _monthly_file_lock:
         if month_key in _monthly_file_ids:
             return _monthly_file_ids[month_key]
@@ -194,15 +192,16 @@ def get_or_create_monthly_schedule_file(date) -> str:
         gdrive    = GoogleDriveHandler()
         folder_id = _get_schedule_folder()
         file_id   = gdrive.get_file_id_by_name(filename, folder_id=folder_id)
-        if not file_id:
-            wb  = _xl.Workbook()
-            buf = io.BytesIO()
-            wb.save(buf)
-            buf.seek(0)
-            file_id = gdrive.create_file(filename, buf, folder_id=folder_id)
-            print(f"  Created monthly schedule file: {filename!r} → {file_id}")
-        _monthly_file_ids[month_key] = file_id
+        if file_id:
+            _monthly_file_ids[month_key] = file_id
         return file_id
+
+
+def _register_monthly_file_id(date, file_id: str):
+    """Cache a newly created monthly schedule file_id."""
+    month_key = date.strftime('%m/%y')
+    with _monthly_file_lock:
+        _monthly_file_ids[month_key] = file_id
 
 
 # Per-month schedule cache — mirrors the master-file cache pattern.
@@ -212,20 +211,22 @@ SCHED_CACHE_TTL = 120  # seconds
 
 
 def get_cached_schedule_handler(date):
-    """Return a loaded handler for the monthly schedule file, re-downloading when stale."""
+    """Return a loaded handler for the monthly schedule file, or None if no file exists yet."""
     from excel_handler_gdrive import ExcelHandlerGDrive
     month_key = date.strftime('%m/%y')
     with _sched_cache_lock:
         now   = _time.monotonic()
         entry = _sched_cache.get(month_key)
         if entry is None or (now - entry[1]) > SCHED_CACHE_TTL:
-            file_id = get_or_create_monthly_schedule_file(date)
-            h       = ExcelHandlerGDrive(file_id=file_id)
+            file_id = _find_monthly_file_id(date)
+            if not file_id:
+                return None   # no schedule saved for this month yet
+            h = ExcelHandlerGDrive(file_id=file_id)
             h.load()
             if entry is not None:
                 entry[0].workbook = None
             _sched_cache[month_key] = (h, now)
-        return _sched_cache[month_key][0]
+        return _sched_cache.get(month_key, (None,))[0]
 
 
 def invalidate_schedule_cache(date):
@@ -553,16 +554,29 @@ def save_schedule():
         # Read machine layout from the Matrix file for visual row formatting
         master_layout = get_cached_handler().get_master_layout()
 
-        # Save into the monthly schedule file, creating it when it's a new month
         from excel_handler_gdrive import ExcelHandlerGDrive
-        file_id = get_or_create_monthly_schedule_file(schedule_date)
+        import openpyxl as _xl
+
+        file_id = _find_monthly_file_id(schedule_date)
         handler = ExcelHandlerGDrive(file_id=file_id)
-        handler.load()
+
+        if file_id:
+            # Existing monthly file — download and update
+            handler.load()
+        else:
+            # New month — build workbook in memory; Drive file created on save()
+            handler.workbook            = _xl.Workbook()
+            handler._create_filename    = f'schedule {schedule_date.strftime("%m/%y")}'
+            handler._create_folder_id   = _get_schedule_folder()
+
         handler.save_schedule_visual(schedule_date, schedule_data, master_layout)
+        # save_schedule_visual calls save() internally; for new files self.file_id is set there
+        if not file_id:
+            _register_monthly_file_id(schedule_date, handler.file_id)
         handler.close()
         invalidate_schedule_cache(schedule_date)
 
-        sheets_url = f'https://docs.google.com/spreadsheets/d/{file_id}/edit'
+        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit'
         return jsonify({
             'success':    True,
             'message':    'Schedule saved successfully to Google Drive',
@@ -582,8 +596,10 @@ def get_schedule(date_str):
     except ValueError:
         return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
     try:
-        date     = datetime.strptime(date_str, '%Y-%m-%d').date()
-        handler  = get_cached_schedule_handler(date)
+        date    = datetime.strptime(date_str, '%Y-%m-%d').date()
+        handler = get_cached_schedule_handler(date)
+        if handler is None:
+            return jsonify({'success': True, 'schedule': []})
         schedule = handler.get_schedule(date)
         return jsonify({'success': True, 'schedule': schedule})
     except Exception as e:

@@ -46,6 +46,9 @@ class ExcelHandlerGDrive:
         self.file_id = file_id
         self.filename = filename
         self.workbook: openpyxl.Workbook | None = None
+        # Set these before save() to create a brand-new Drive file instead of updating
+        self._create_filename:  str | None = None
+        self._create_folder_id: str | None = None
 
         # Shared cell styles
         self.yellow_fill = PatternFill(start_color=YELLOW, end_color=YELLOW, fill_type="solid")
@@ -77,15 +80,27 @@ class ExcelHandlerGDrive:
         return self.workbook
 
     def save(self):
-        """Serialise and re-upload the workbook to Google Drive."""
+        """Serialise and upload the workbook to Google Drive.
+
+        If file_id is already set, the existing file is updated.
+        If file_id is None but _create_filename is set, a new Drive file is
+        created and self.file_id is populated with the returned ID.
+        """
         if not self.workbook:
             raise RuntimeError("No workbook loaded — call load() first")
-        if not self.file_id:
-            raise ValueError("No file_id available — check config.py")
 
         buf = io.BytesIO()
         self.workbook.save(buf)
-        self.gdrive.upload_file(self.file_id, buf)
+        buf.seek(0)
+
+        if self.file_id:
+            self.gdrive.upload_file(self.file_id, buf)
+        elif self._create_filename:
+            self.file_id = self.gdrive.create_file(
+                self._create_filename, buf, folder_id=self._create_folder_id)
+            print(f"  Created Drive file: {self._create_filename!r} → {self.file_id}")
+        else:
+            raise ValueError("No file_id and no _create_filename — cannot save")
 
     def close(self):
         if self.workbook:
