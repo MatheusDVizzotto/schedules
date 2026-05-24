@@ -4,6 +4,18 @@ var _permanentDeleteName = null;
 var _absenceWorkerName   = null;
 var _absences            = {};   // {workerName: [{date_from, date_to, reason}, ...]}
 
+// Returns {absence, idx} if the worker has an active absence today, otherwise null.
+function getActiveAbsenceWithIndex(workerName) {
+    var today    = new Date().toISOString().split('T')[0];
+    var absences = _absences[workerName] || [];
+    for (var i = 0; i < absences.length; i++) {
+        if (absences[i].date_from <= today && today <= absences[i].date_to) {
+            return { absence: absences[i], idx: i };
+        }
+    }
+    return null;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     loadWorkers();
 
@@ -33,8 +45,15 @@ async function loadWorkers() {
         const absencesData = await absencesRes.json();
 
         if (absencesData.success) _absences = absencesData.absences;
-        if (activeData.success)   renderActiveWorkers(activeData.workers);
-        if (deletedData.success)  renderDeletedWorkers(deletedData.workers);
+
+        if (activeData.success) {
+            var trulyActive    = activeData.workers.filter(function(w) { return !getActiveAbsenceWithIndex(w.name); });
+            var currentlyAbsent = activeData.workers.filter(function(w) { return !!getActiveAbsenceWithIndex(w.name); });
+            renderActiveWorkers(trulyActive);
+            renderDeletedWorkers(deletedData.success ? deletedData.workers : [], currentlyAbsent);
+        } else if (deletedData.success) {
+            renderDeletedWorkers(deletedData.workers, []);
+        }
     } catch (err) {
         showListError('activeWorkersList',  'Failed to load: ' + err.message);
         showListError('deletedWorkersList', 'Failed to load: ' + err.message);
@@ -54,25 +73,28 @@ function renderActiveWorkers(workers) {
 
     list.innerHTML = workers.map(function(w) {
         const safe     = escapeHtml(w.name);
-        const absences = _absences[w.name] || [];
+        const allAbsences = _absences[w.name] || [];
+        const today       = new Date().toISOString().split('T')[0];
 
+        // Only show upcoming absences (past and current are not shown here;
+        // current ones move the worker to the Removed section entirely).
         var absenceHtml = '';
-        if (absences.length) {
-            absenceHtml = '<div class="mt-1 ms-4">';
-            absences.forEach(function(a, idx) {
-                absenceHtml +=
-                    '<span class="badge bg-warning text-dark me-1">' +
-                      '<i class="fas fa-calendar-minus me-1"></i>' +
-                      escapeHtml(a.date_from) + ' → ' + escapeHtml(a.date_to) +
-                      (a.reason ? ' — ' + escapeHtml(a.reason) : '') +
-                    '</span>' +
-                    '<button class="btn btn-xs btn-link text-danger p-0 me-2" style="font-size:0.75rem;" ' +
-                            'onclick="removeAbsence(\'' + safe + '\',' + idx + ')" title="Remove absence">' +
-                      '<i class="fas fa-times"></i>' +
-                    '</button>';
-            });
-            absenceHtml += '</div>';
-        }
+        var hasUpcoming = false;
+        allAbsences.forEach(function(a, idx) {
+            if (a.date_from <= today) return; // skip past and current
+            if (!hasUpcoming) { absenceHtml = '<div class="mt-1 ms-4">'; hasUpcoming = true; }
+            absenceHtml +=
+                '<span class="badge bg-warning text-dark me-1">' +
+                  '<i class="fas fa-calendar-minus me-1"></i>' +
+                  escapeHtml(a.date_from) + ' → ' + escapeHtml(a.date_to) +
+                  (a.reason ? ' — ' + escapeHtml(a.reason) : '') +
+                '</span>' +
+                '<button class="btn btn-xs btn-link text-danger p-0 me-2" style="font-size:0.75rem;" ' +
+                        'onclick="removeAbsence(\'' + safe + '\',' + idx + ')" title="Remove absence">' +
+                  '<i class="fas fa-times"></i>' +
+                '</button>';
+        });
+        if (hasUpcoming) absenceHtml += '</div>';
 
         return (
             '<li class="list-group-item">' +
@@ -95,25 +117,58 @@ function renderActiveWorkers(workers) {
 
 // ── Render deleted workers ────────────────────────────────────────────────────
 
-function renderDeletedWorkers(workerNames) {
-    const list = document.getElementById('deletedWorkersList');
-    document.getElementById('deletedCount').textContent = workerNames.length;
+function renderDeletedWorkers(workerNames, absentWorkers) {
+    absentWorkers = absentWorkers || [];
+    const list  = document.getElementById('deletedWorkersList');
+    const total = workerNames.length + absentWorkers.length;
+    document.getElementById('deletedCount').textContent = total;
 
-    if (!workerNames.length) {
+    if (!total) {
         list.innerHTML = '<li class="list-group-item text-muted text-center py-3">No removed workers</li>';
         return;
     }
 
-    list.innerHTML = workerNames.map(function(name) {
-        return (
+    var html = '';
+
+    // Currently-absent workers (temporary — auto-return when period ends)
+    absentWorkers.forEach(function(w) {
+        var safe   = escapeHtml(w.name);
+        var info   = getActiveAbsenceWithIndex(w.name);
+        var a      = info ? info.absence : null;
+        var idx    = info ? info.idx     : 0;
+        var detail = a
+            ? escapeHtml(a.date_from) + ' → ' + escapeHtml(a.date_to) +
+              (a.reason ? ' — ' + escapeHtml(a.reason) : '')
+            : '';
+
+        html +=
+            '<li class="list-group-item list-group-item-warning">' +
+              '<div class="d-flex justify-content-between align-items-start gap-2">' +
+                '<div>' +
+                  '<span><i class="fas fa-calendar-minus text-warning me-2"></i><strong>' + safe + '</strong></span>' +
+                  (detail ? '<div class="small text-muted mt-1">' + detail + '</div>' : '') +
+                '</div>' +
+                '<button class="btn btn-sm btn-outline-warning flex-shrink-0" ' +
+                        'onclick="removeAbsence(\'' + safe + '\',' + idx + ')" ' +
+                        'title="Cancel this absence">' +
+                  '<i class="fas fa-times"></i> Cancel' +
+                '</button>' +
+              '</div>' +
+            '</li>';
+    });
+
+    // Permanently soft-deleted workers
+    workerNames.forEach(function(name) {
+        html +=
             '<li class="list-group-item d-flex justify-content-between align-items-center">' +
               '<span class="text-muted"><i class="fas fa-user-slash me-2"></i>' + escapeHtml(name) + '</span>' +
               '<button class="btn btn-sm btn-outline-success" onclick="restoreWorker(\'' + escapeHtml(name) + '\')">' +
                 '<i class="fas fa-user-check"></i> Restore' +
               '</button>' +
-            '</li>'
-        );
-    }).join('');
+            '</li>';
+    });
+
+    list.innerHTML = html;
 }
 
 // ── Add worker ────────────────────────────────────────────────────────────────
