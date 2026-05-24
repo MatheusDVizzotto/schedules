@@ -934,10 +934,11 @@ function calcWorkerMinutes(workerCol) {
 
 function updateWorkerAvailability() {
     workers.forEach(function(worker) {
-        const usedMins = calcWorkerMinutes(worker.col);
+        const absent   = !!getActiveAbsence(worker.name);
+        const usedMins = absent ? 480 : calcWorkerMinutes(worker.col);
         const freeMins = Math.max(0, 480 - usedMins);
         const freeHrs  = (freeMins / 60).toFixed(1);
-        const blocked  = usedMins >= 450; // 7.5 hrs threshold
+        const blocked  = absent || usedMins >= 450; // absent or 7.5 hrs threshold
 
         document.querySelectorAll('.worker-hours-badge[data-worker-col="' + worker.col + '"]').forEach(function(el) {
             el.textContent = freeHrs + 'h free';
