@@ -195,8 +195,7 @@ def get_or_create_monthly_schedule_file(date) -> str:
         folder_id = _get_schedule_folder()
         file_id   = gdrive.get_file_id_by_name(filename, folder_id=folder_id)
         if not file_id:
-            wb = _xl.Workbook()
-            wb.remove(wb.active)   # remove the default blank sheet
+            wb  = _xl.Workbook()
             buf = io.BytesIO()
             wb.save(buf)
             buf.seek(0)
