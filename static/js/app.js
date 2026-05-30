@@ -31,8 +31,8 @@ function shortMachineName(name) {
 // ── Startup ───────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
-    const today = new Date().toISOString().split('T')[0];
-    document.getElementById('scheduleDate').value = today;
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    document.getElementById('scheduleDate').value = tomorrow.toISOString().split('T')[0];
 
     loadData();
 
