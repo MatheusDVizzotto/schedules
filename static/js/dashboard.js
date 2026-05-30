@@ -187,7 +187,7 @@ function renderWorkerCard(worker, assignments, colIdx) {
             : '';
         assignmentsHtml +=
             '<div class="d-flex justify-content-between align-items-start mb-1">' +
-              '<div>' +
+              '<div style="min-width:0">' +
                 '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
                 (floor ? '<div class="machine-label">' + escapeHtml(floor) + ' Floor</div>' : '') +
                 (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes) + '</div>' : '') +
