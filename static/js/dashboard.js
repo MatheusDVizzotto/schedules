@@ -5,8 +5,7 @@ var currentDate = '';   // ISO YYYY-MM-DD
 // ── Startup ───────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
-    var today = new Date().toISOString().split('T')[0];
-    setDate(today);
+    setDate(adelaideToday());
 
     document.getElementById('dashboardDate').addEventListener('change', function () {
         setDate(this.value);
@@ -18,7 +17,7 @@ document.addEventListener('DOMContentLoaded', function () {
         setDate(offsetDate(currentDate, 1));
     });
     document.getElementById('todayBtn').addEventListener('click', function () {
-        setDate(new Date().toISOString().split('T')[0]);
+        setDate(adelaideToday());
     });
     document.getElementById('refreshBtn').addEventListener('click', function () {
         loadDashboard(currentDate);
@@ -90,58 +89,56 @@ function renderDashboard(schedule, iso) {
         return;
     }
 
-    // Group entries by machine, collect all workers per machine
-    var machineMap = {};
+    // Group entries by worker → list of machine assignments
+    var workerMap = {};
     schedule.forEach(function (entry) {
-        var key = entry.machine;
-        if (!machineMap[key]) {
-            machineMap[key] = {
-                machine:    entry.machine,
-                time_start: entry.time_start  || '',
-                time_finish: entry.time_finish || '',
-                notes:      entry.notes        || '',
-                workers:    []
-            };
-        }
-        if (entry.worker && machineMap[key].workers.indexOf(entry.worker) === -1) {
-            machineMap[key].workers.push(entry.worker);
-        }
-    });
-
-    var machines = Object.values(machineMap);
-
-    // Split into Day and Arvo shifts
-    var dayShift  = machines.filter(function (m) { return !m.machine.endsWith(' - Arvo'); });
-    var arvoShift = machines.filter(function (m) { return m.machine.endsWith(' - Arvo'); });
-
-    // Build worker colour map (consistent colour per worker name)
-    var workerColours = {};
-    var allWorkers = [];
-    machines.forEach(function (m) {
-        m.workers.forEach(function (w) {
-            if (allWorkers.indexOf(w) === -1) allWorkers.push(w);
+        if (!entry.worker) return;
+        if (!workerMap[entry.worker]) workerMap[entry.worker] = [];
+        workerMap[entry.worker].push({
+            machine:     entry.machine    || '',
+            time_start:  entry.time_start  || '',
+            time_finish: entry.time_finish || '',
+            notes:       entry.notes       || '',
+            isArvo:      (entry.machine || '').endsWith(' - Arvo')
         });
     });
-    allWorkers.sort().forEach(function (w, i) {
-        workerColours[w] = i % 8;
+
+    var allWorkers = Object.keys(workerMap).sort();
+
+    // Assign a consistent colour index per worker
+    var workerColours = {};
+    allWorkers.forEach(function (w, i) { workerColours[w] = i % 8; });
+
+    // Workers that have at least one day / arvo assignment
+    var dayWorkers  = allWorkers.filter(function (w) {
+        return workerMap[w].some(function (a) { return !a.isArvo; });
     });
+    var arvoWorkers = allWorkers.filter(function (w) {
+        return workerMap[w].some(function (a) { return a.isArvo; });
+    });
+
+    // Unique machine count
+    var machineSet = {};
+    schedule.forEach(function (e) { if (e.machine) machineSet[e.machine] = true; });
 
     var html = '';
 
-    if (dayShift.length > 0) {
+    if (dayWorkers.length > 0) {
         html += '<div class="shift-section-title"><i class="fas fa-sun me-1"></i> Day Shift</div>';
         html += '<div class="row g-3 mb-4">';
-        dayShift.forEach(function (m) {
-            html += renderMachineCard(m, workerColours);
+        dayWorkers.forEach(function (w) {
+            var dayAssignments = workerMap[w].filter(function (a) { return !a.isArvo; });
+            html += renderWorkerCard(w, dayAssignments, workerColours[w]);
         });
         html += '</div>';
     }
 
-    if (arvoShift.length > 0) {
+    if (arvoWorkers.length > 0) {
         html += '<div class="shift-section-title"><i class="fas fa-moon me-1"></i> Arvo Shift</div>';
         html += '<div class="row g-3 mb-4">';
-        arvoShift.forEach(function (m) {
-            html += renderMachineCard(m, workerColours);
+        arvoWorkers.forEach(function (w) {
+            var arvoAssignments = workerMap[w].filter(function (a) { return a.isArvo; });
+            html += renderWorkerCard(w, arvoAssignments, workerColours[w]);
         });
         html += '</div>';
     }
@@ -150,44 +147,52 @@ function renderDashboard(schedule, iso) {
     html +=
         '<div class="card mt-2 mb-5">' +
           '<div class="card-body py-2 d-flex flex-wrap gap-4 small text-muted">' +
-            '<span><i class="fas fa-industry me-1"></i><strong>' + machines.length + '</strong> machines</span>' +
             '<span><i class="fas fa-users me-1"></i><strong>' + allWorkers.length + '</strong> workers</span>' +
-            '<span><i class="fas fa-sun me-1"></i><strong>' + dayShift.length + '</strong> day shift</span>' +
-            '<span><i class="fas fa-moon me-1"></i><strong>' + arvoShift.length + '</strong> arvo shift</span>' +
+            '<span><i class="fas fa-industry me-1"></i><strong>' + Object.keys(machineSet).length + '</strong> machines</span>' +
+            '<span><i class="fas fa-sun me-1"></i><strong>' + dayWorkers.length + '</strong> day shift</span>' +
+            '<span><i class="fas fa-moon me-1"></i><strong>' + arvoWorkers.length + '</strong> arvo shift</span>' +
           '</div>' +
         '</div>';
 
     content.innerHTML = html;
 }
 
-function renderMachineCard(m, workerColours) {
-    // Strip floor prefix and shift suffix for compact machine name
-    var shortMachine = m.machine
+function shortMachineName(machine) {
+    return machine
         .replace(/^Mill Floor - /,      '')
         .replace(/^Build Floor - /,     '')
         .replace(/^Recycled Floor - /,  '')
         .replace(/^Recycle Floor - /,   '')
         .replace(/ - Day$/,  '')
         .replace(/ - Arvo$/, '');
+}
 
-    var floorLabel = '';
-    if (m.machine.startsWith('Mill Floor'))      floorLabel = 'Mill';
-    else if (m.machine.startsWith('Build Floor')) floorLabel = 'Build';
-    else if (m.machine.includes('Recycle'))       floorLabel = 'Recycled';
+function floorLabel(machine) {
+    if (machine.startsWith('Mill Floor'))       return 'Mill';
+    if (machine.startsWith('Build Floor'))      return 'Build';
+    if (machine.includes('Recycle'))            return 'Recycled';
+    return '';
+}
 
-    var timeStr = '';
-    if (m.time_start && m.time_finish) {
-        timeStr = formatTime(m.time_start) + ' – ' + formatTime(m.time_finish);
-    }
+function renderWorkerCard(worker, assignments, colIdx) {
+    var initials = worker.split(' ').map(function (p) { return p[0]; }).join('').toUpperCase().slice(0, 2);
+    var colClass  = 'av-' + colIdx;
 
-    var workersHtml = '';
-    m.workers.forEach(function (worker) {
-        var initials = worker.split(' ').map(function (p) { return p[0]; }).join('').toUpperCase().slice(0, 2);
-        var colClass  = 'av-' + (workerColours[worker] || 0);
-        workersHtml +=
-            '<div class="d-flex align-items-center gap-2 mb-2">' +
-              '<div class="worker-avatar ' + colClass + '">' + escapeHtml(initials) + '</div>' +
-              '<div class="fw-semibold">' + escapeHtml(worker) + '</div>' +
+    var assignmentsHtml = '';
+    assignments.forEach(function (a) {
+        var name  = shortMachineName(a.machine);
+        var floor = floorLabel(a.machine);
+        var time  = (a.time_start && a.time_finish)
+            ? formatTime(a.time_start) + ' – ' + formatTime(a.time_finish)
+            : '';
+        assignmentsHtml +=
+            '<div class="d-flex justify-content-between align-items-start mb-1">' +
+              '<div>' +
+                '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
+                (floor ? '<div class="machine-label">' + escapeHtml(floor) + ' Floor</div>' : '') +
+                (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes) + '</div>' : '') +
+              '</div>' +
+              (time ? '<span class="badge bg-primary time-badge ms-2 flex-shrink-0">' + escapeHtml(time) + '</span>' : '') +
             '</div>';
     });
 
@@ -195,18 +200,12 @@ function renderMachineCard(m, workerColours) {
         '<div class="col-12 col-sm-6 col-lg-4 col-xl-3">' +
           '<div class="card worker-card h-100">' +
             '<div class="card-body">' +
-              '<div class="d-flex justify-content-between align-items-start mb-2">' +
-                '<div>' +
-                  '<div class="fw-bold">' + escapeHtml(shortMachine) + '</div>' +
-                  (floorLabel ? '<div class="machine-label">' + escapeHtml(floorLabel) + ' Floor</div>' : '') +
-                '</div>' +
-                (timeStr
-                  ? '<span class="badge bg-primary time-badge">' + escapeHtml(timeStr) + '</span>'
-                  : '') +
+              '<div class="d-flex align-items-center gap-2 mb-2">' +
+                '<div class="worker-avatar ' + colClass + '">' + escapeHtml(initials) + '</div>' +
+                '<div class="fw-bold">' + escapeHtml(worker) + '</div>' +
               '</div>' +
               '<hr class="my-2">' +
-              workersHtml +
-              (m.notes ? '<div class="notes-text mt-2"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(m.notes) + '</div>' : '') +
+              assignmentsHtml +
             '</div>' +
           '</div>' +
         '</div>'

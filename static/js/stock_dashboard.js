@@ -82,8 +82,7 @@ function restoreSelections(saved) {
 function updateLastRefreshed() {
     var el = document.getElementById('lastRefreshed');
     if (el) {
-        var now = new Date();
-        el.textContent = 'Last updated: ' + now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        el.textContent = 'Last updated: ' + adelaideTimeNow();
     }
 }
 

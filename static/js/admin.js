@@ -6,7 +6,7 @@ var _absences            = {};   // {workerName: [{date_from, date_to, reason}, 
 
 // Returns {absence, idx} if the worker has an active absence today, otherwise null.
 function getActiveAbsenceWithIndex(workerName) {
-    var today    = new Date().toISOString().split('T')[0];
+    var today    = adelaideToday();
     var absences = _absences[workerName] || [];
     for (var i = 0; i < absences.length; i++) {
         if (absences[i].date_from <= today && today <= absences[i].date_to) {
@@ -74,7 +74,7 @@ function renderActiveWorkers(workers) {
     list.innerHTML = workers.map(function(w) {
         const safe     = escapeHtml(w.name);
         const allAbsences = _absences[w.name] || [];
-        const today       = new Date().toISOString().split('T')[0];
+        const today       = adelaideToday();
 
         // Only show upcoming absences (past and current are not shown here;
         // current ones move the worker to the Removed section entirely).
@@ -227,7 +227,7 @@ async function addWorker() {
 function openAbsenceModal(name) {
     _absenceWorkerName = name;
     document.getElementById('absenceWorkerName').textContent = name;
-    const today = new Date().toISOString().split('T')[0];
+    const today = adelaideToday();
     document.getElementById('absenceDateFrom').value = today;
     document.getElementById('absenceDateTo').value   = today;
     document.getElementById('absenceReason').value   = '';
