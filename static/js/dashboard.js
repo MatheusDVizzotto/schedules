@@ -186,13 +186,15 @@ function renderWorkerCard(worker, assignments, colIdx) {
             ? formatTime(a.time_start) + ' – ' + formatTime(a.time_finish)
             : '';
         assignmentsHtml +=
-            '<div class="d-flex justify-content-between align-items-start mb-1">' +
-              '<div style="min-width:0">' +
-                '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
-                (floor ? '<div class="machine-label">' + escapeHtml(floor) + ' Floor</div>' : '') +
-                (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes) + '</div>' : '') +
+            '<div class="mb-1">' +
+              '<div class="d-flex justify-content-between align-items-start">' +
+                '<div>' +
+                  '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
+                  (floor ? '<div class="machine-label">' + escapeHtml(floor) + ' Floor</div>' : '') +
+                '</div>' +
+                (time ? '<span class="badge bg-primary time-badge ms-2 flex-shrink-0">' + escapeHtml(time) + '</span>' : '') +
               '</div>' +
-              (time ? '<span class="badge bg-primary time-badge ms-2 flex-shrink-0">' + escapeHtml(time) + '</span>' : '') +
+              (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes) + '</div>' : '') +
             '</div>';
     });
 
