@@ -659,6 +659,7 @@ class ExcelHandlerGDrive:
             #                  multi-block worker  → "Name (HH:MM-HH:MM),(HH:MM-HH:MM)"
             #    Single-block workers listed first, then multi-block workers.
             # 4. Notes appear only on the first (leftmost) band.
+            needed_height = row_height or 15
             if entry:
                 notes_text = ' | '.join(entry['notes']) if entry['notes'] else ''
 
@@ -702,8 +703,9 @@ class ExcelHandlerGDrive:
                                 block_strs = ','.join(f"({ws}-{wf})" for ws, wf in blocks)
                                 worker_parts.append(f"{name} {block_strs}")
 
-                        cell_text = ', '.join(worker_parts)
-                        if first_band and notes_text:
+                        cell_text     = ', '.join(worker_parts)
+                        is_notes_band = first_band and bool(notes_text)
+                        if is_notes_band:
                             cell_text += f' - {notes_text}'
                         first_band = False
 
@@ -715,6 +717,12 @@ class ExcelHandlerGDrive:
 
                         col_start = T_OFF + start_idx
                         col_end   = T_OFF + min(finish_idx, len(time_slots)) - 1
+
+                        if is_notes_band:
+                            band_cols      = max(1, col_end - col_start + 1)
+                            chars_per_line = max(10, band_cols * 6)
+                            num_lines      = max(1, -(-len(cell_text) // chars_per_line))
+                            needed_height  = max(needed_height, num_lines * 15 + 4)
 
                         for idx in range(start_idx, min(finish_idx, len(time_slots))):
                             c = sheet.cell(row=dest_row, column=T_OFF + idx)
@@ -737,7 +745,7 @@ class ExcelHandlerGDrive:
                         merged_cell.border    = self.thin_border
                         print(f"  ✓ {mname!r}  {band_start}→{band_finish}  {cell_text!r}")
 
-            sheet.row_dimensions[dest_row].height = row_height or 15
+            sheet.row_dimensions[dest_row].height = needed_height
             dest_row += 1
 
         print(f"  ✓ Day sheet {date_str!r}: "
