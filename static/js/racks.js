@@ -107,14 +107,14 @@ function renderLocationsPanel() {
         var lines = getAvailableLines(activeLocationFilter);
         if (lines.length > 0) {
             lineHtml = '<div class="d-flex flex-wrap gap-2 align-items-center w-100 mt-2">';
-            lineHtml += '<span class="text-muted small me-1"><i class="fas fa-grip-lines me-1"></i>Line:</span>';
+            lineHtml += '<span class="text-muted small me-1"><i class="fas fa-grip-lines me-1"></i>Bay:</span>';
             lines.forEach(function (line) {
                 var isActive = line === activeLineFilter;
-                lineHtml += '<span class="location-chip' + (isActive ? ' location-chip-active' : '') + '" data-line="' + escHtml(line) + '" title="Show only line ' + escHtml(line) + '">' +
-                    escHtml(line) + '</span>';
+                lineHtml += '<span class="location-chip' + (isActive ? ' location-chip-active' : '') + '" data-line="' + escHtml(line) + '" title="Show only Bay ' + escHtml(line) + '">' +
+                    'Bay ' + escHtml(line) + '</span>';
             });
             if (activeLineFilter) {
-                lineHtml += '<a href="#" class="small ms-2 text-muted" id="clearLineFilter" style="text-decoration:none;">× All lines</a>';
+                lineHtml += '<a href="#" class="small ms-2 text-muted" id="clearLineFilter" style="text-decoration:none;">× All bays</a>';
             }
             lineHtml += '</div>';
         }
