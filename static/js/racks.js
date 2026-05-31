@@ -14,6 +14,7 @@ var QUANTITY_OPTIONS = (function () {
 
 var locations = [];              // current location list
 var activeLocationFilter = null; // null = show all
+var activeLineFilter = null;     // 3rd char of bay_code, null = show all lines
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
@@ -87,30 +88,79 @@ function renderLocationsPanel() {
         panel.innerHTML = '<span class="text-muted small fst-italic">No locations yet — add one above.</span>';
         return;
     }
-    var html = locations.map(function (loc) {
+
+    // Location chips row
+    var locHtml = '<div class="d-flex flex-wrap gap-2 align-items-center w-100">';
+    locHtml += locations.map(function (loc) {
         var isActive = loc === activeLocationFilter;
         return '<span class="location-chip' + (isActive ? ' location-chip-active' : '') + '" data-loc="' + escHtml(loc) + '" title="Click to filter bays by this location">' +
             '<i class="fas fa-map-marker-alt me-1" style="font-size:0.75rem;"></i>' + escHtml(loc) + '</span>';
     }).join('');
     if (activeLocationFilter) {
-        html += '<a href="#" class="small ms-2 text-muted" id="clearLocFilter" style="text-decoration:none;">× Show all</a>';
+        locHtml += '<a href="#" class="small ms-2 text-muted" id="clearLocFilter" style="text-decoration:none;">× Show all</a>';
     }
-    panel.innerHTML = html;
+    locHtml += '</div>';
 
-    panel.querySelectorAll('.location-chip').forEach(function (chip) {
+    // Line chips row (only when a location is active)
+    var lineHtml = '';
+    if (activeLocationFilter) {
+        var lines = getAvailableLines(activeLocationFilter);
+        if (lines.length > 0) {
+            lineHtml = '<div class="d-flex flex-wrap gap-2 align-items-center w-100 mt-2">';
+            lineHtml += '<span class="text-muted small me-1"><i class="fas fa-grip-lines me-1"></i>Line:</span>';
+            lines.forEach(function (line) {
+                var isActive = line === activeLineFilter;
+                lineHtml += '<span class="location-chip' + (isActive ? ' location-chip-active' : '') + '" data-line="' + escHtml(line) + '" title="Show only line ' + escHtml(line) + '">' +
+                    escHtml(line) + '</span>';
+            });
+            if (activeLineFilter) {
+                lineHtml += '<a href="#" class="small ms-2 text-muted" id="clearLineFilter" style="text-decoration:none;">× All lines</a>';
+            }
+            lineHtml += '</div>';
+        }
+    }
+
+    panel.innerHTML = locHtml + lineHtml;
+
+    panel.querySelectorAll('.location-chip[data-loc]').forEach(function (chip) {
         chip.addEventListener('click', function () {
             var loc = chip.getAttribute('data-loc');
-            activeLocationFilter = (activeLocationFilter === loc) ? null : loc;
+            if (activeLocationFilter === loc) {
+                activeLocationFilter = null;
+            } else {
+                activeLocationFilter = loc;
+            }
+            activeLineFilter = null;
             renderLocationsPanel();
             filterBaysTable();
         });
     });
 
-    var clearBtn = panel.querySelector('#clearLocFilter');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function (e) {
+    panel.querySelectorAll('.location-chip[data-line]').forEach(function (chip) {
+        chip.addEventListener('click', function () {
+            var line = chip.getAttribute('data-line');
+            activeLineFilter = (activeLineFilter === line) ? null : line;
+            renderLocationsPanel();
+            filterBaysTable();
+        });
+    });
+
+    var clearLocBtn = panel.querySelector('#clearLocFilter');
+    if (clearLocBtn) {
+        clearLocBtn.addEventListener('click', function (e) {
             e.preventDefault();
             activeLocationFilter = null;
+            activeLineFilter = null;
+            renderLocationsPanel();
+            filterBaysTable();
+        });
+    }
+
+    var clearLineBtn = panel.querySelector('#clearLineFilter');
+    if (clearLineBtn) {
+        clearLineBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            activeLineFilter = null;
             renderLocationsPanel();
             filterBaysTable();
         });
@@ -124,13 +174,38 @@ function renderLocationsPanel() {
         }).join('');
 }
 
+function getAvailableLines(location) {
+    var seen = {};
+    var lines = [];
+    document.querySelectorAll('#racksBody tr').forEach(function (tr) {
+        if (tr.querySelector('.empty-state')) return;
+        var locSel = tr.querySelector('select[data-field="location"]');
+        if (!locSel || locSel.value !== location) return;
+        var bayInput = tr.querySelectorAll('input')[0];
+        if (!bayInput) return;
+        var code = bayInput.value.trim();
+        var line = code.charAt(2); // 3rd character
+        if (line && !seen[line]) {
+            seen[line] = true;
+            lines.push(line);
+        }
+    });
+    lines.sort();
+    return lines;
+}
+
 function filterBaysTable() {
     document.querySelectorAll('#racksBody tr').forEach(function (tr) {
         if (tr.querySelector('.empty-state')) return;
-        if (!activeLocationFilter) { tr.style.display = ''; return; }
         var locSel = tr.querySelector('select[data-field="location"]');
         if (!locSel) return;
-        tr.style.display = (locSel.value === activeLocationFilter) ? '' : 'none';
+        if (activeLocationFilter && locSel.value !== activeLocationFilter) { tr.style.display = 'none'; return; }
+        if (activeLineFilter) {
+            var bayInput = tr.querySelectorAll('input')[0];
+            var code = bayInput ? bayInput.value.trim() : '';
+            if (code.charAt(2) !== activeLineFilter) { tr.style.display = 'none'; return; }
+        }
+        tr.style.display = '';
     });
 }
 
@@ -247,7 +322,17 @@ function appendRow(rack) {
     var itemTypeSel    = tr.querySelector('select[data-field="item_type"]');
     var itemSubtypeSel = tr.querySelector('select[data-field="item_subtype"]');
 
-    locSelect.addEventListener('change', function () { filterBaysTable(); });
+    locSelect.addEventListener('change', function () {
+        activeLineFilter = null;
+        renderLocationsPanel();
+        filterBaysTable();
+    });
+
+    // bay_code is inputs[0] — re-derive line chips when it changes
+    var bayCodeInput = tr.querySelectorAll('input')[0];
+    bayCodeInput.addEventListener('input', function () {
+        renderLocationsPanel();
+    });
 
     itemTypeSel.addEventListener('change', function () {
         var type = itemTypeSel.value;
