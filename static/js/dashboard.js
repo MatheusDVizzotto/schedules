@@ -179,7 +179,9 @@ function renderWorkerCard(worker, assignments, colIdx) {
     var colClass  = 'av-' + colIdx;
 
     var assignmentsHtml = '';
-    assignments.forEach(function (a) {
+    assignments.slice().sort(function (a, b) {
+        return (a.time_start || '').localeCompare(b.time_start || '');
+    }).forEach(function (a) {
         var name  = shortMachineName(a.machine);
         var floor = floorLabel(a.machine);
         var time  = (a.time_start && a.time_finish)
