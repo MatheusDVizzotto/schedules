@@ -184,7 +184,7 @@ function renderMachineFilter() {
 
     // Unmatched machines (don't fit any block) — show in an extra block
     if (unmatched.length) {
-        html += '<div class="filter-col" style="width:100%">';
+        html += '<div class="filter-col">';
         html += '<div class="filter-block">';
         html += '<div class="filter-block-title">Other Machines</div>';
         unmatched.forEach(function(machine) {
