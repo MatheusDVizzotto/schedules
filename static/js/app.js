@@ -224,6 +224,7 @@ function clearBlock(idx) {
 }
 
 function onMachineSelectionChange() {
+    snapshotAssignments();
     const newSelectedRows = new Set();
     document.querySelectorAll('.machine-filter-cb:checked').forEach(function(cb) {
         newSelectedRows.add(parseInt(cb.dataset.machineRow));
