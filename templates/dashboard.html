@@ -76,9 +76,24 @@
         .av-6 { background: #f97316; }
         .av-7 { background: #ec4899; }
 
+        .assignments-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .machine-block {
+            flex: 1 1 140px;
+            min-width: 130px;
+            padding: 6px 8px;
+            background: rgba(0,0,0,0.03);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
         @media (max-width: 575px) {
             .worker-avatar { width: 42px; height: 42px; font-size: 1rem; }
             .time-badge { font-size: 0.82rem; }
+            .assignments-wrap { flex-direction: column; }
+            .machine-block { flex: 1 1 auto; }
         }
     </style>
     <script>

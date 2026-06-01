@@ -188,7 +188,7 @@ function renderWorkerCard(worker, assignments, colIdx) {
             ? formatTime(a.time_start) + ' – ' + formatTime(a.time_finish)
             : '';
         assignmentsHtml +=
-            '<div class="mb-1">' +
+            '<div class="machine-block">' +
               '<div class="d-flex justify-content-between align-items-start">' +
                 '<div>' +
                   '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
@@ -209,7 +209,7 @@ function renderWorkerCard(worker, assignments, colIdx) {
                 '<div class="fw-bold">' + escapeHtml(worker) + '</div>' +
               '</div>' +
               '<hr class="my-2">' +
-              assignmentsHtml +
+              '<div class="assignments-wrap">' + assignmentsHtml + '</div>' +
             '</div>' +
           '</div>' +
         '</div>'
