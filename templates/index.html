@@ -88,9 +88,6 @@
                 <div class="d-flex gap-2 flex-wrap">
                     <button class="btn btn-sm btn-outline-secondary" id="selectAllMachines">Select All</button>
                     <button class="btn btn-sm btn-outline-secondary" id="clearAllMachines">Clear All</button>
-                    <button class="btn btn-sm btn-success" id="proceedBtn" disabled>
-                        Assign Workers <i class="fas fa-arrow-right"></i>
-                    </button>
                 </div>
             </div>
             <div class="card-body pb-2">
@@ -103,19 +100,8 @@
             </div>
         </div>
 
-        <!-- STEP 2: Worker assignment -->
-        <div id="stepTwo" style="display:none;">
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                <div>
-                    <span class="badge bg-success me-2">Step 2</span>
-                    <strong>Assign workers and times</strong>
-                    <span class="text-muted ms-2 small" id="selectedMachineCount"></span>
-                </div>
-                <button class="btn btn-sm btn-outline-secondary" id="backToFilter">
-                    <i class="fas fa-arrow-left"></i> Change Machines
-                </button>
-            </div>
-
+        <!-- Worker assignment -->
+        <div id="stepTwo">
             <!-- Proficiency legend -->
             <div class="d-flex flex-wrap gap-2 mb-3 ps-1 small">
                 <span><span class="badge bg-primary">Main Role</span> Primary operator</span>

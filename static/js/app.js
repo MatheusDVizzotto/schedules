@@ -37,8 +37,6 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.getElementById('loadSchedule').addEventListener('click', loadSchedule);
     document.getElementById('saveSchedule').addEventListener('click', saveSchedule);
-    document.getElementById('proceedBtn').addEventListener('click', showStepTwo);
-    document.getElementById('backToFilter').addEventListener('click', showStepOne);
     document.getElementById('selectAllMachines').addEventListener('click', selectAllMachines);
     document.getElementById('clearAllMachines').addEventListener('click', clearAllMachines);
 });
@@ -207,7 +205,7 @@ function renderMachineFilter() {
     container.innerHTML = html;
 
     container.querySelectorAll('.machine-filter-cb').forEach(function(cb) {
-        cb.addEventListener('change', updateProceedButton);
+        cb.addEventListener('change', onMachineSelectionChange);
     });
 }
 
@@ -215,23 +213,43 @@ function selectBlock(idx) {
     document.querySelectorAll('.machine-filter-cb[data-block-idx="' + idx + '"]').forEach(function(cb) {
         cb.checked = true;
     });
-    updateProceedButton();
+    onMachineSelectionChange();
 }
 
 function clearBlock(idx) {
     document.querySelectorAll('.machine-filter-cb[data-block-idx="' + idx + '"]').forEach(function(cb) {
         cb.checked = false;
     });
-    updateProceedButton();
+    onMachineSelectionChange();
 }
 
-function updateProceedButton() {
-    const checked = document.querySelectorAll('.machine-filter-cb:checked').length;
-    const btn = document.getElementById('proceedBtn');
-    btn.disabled = checked === 0;
-    btn.textContent = checked
-        ? 'Assign Workers (' + checked + ') →'
-        : 'Assign Workers →';
+function onMachineSelectionChange() {
+    const newSelectedRows = new Set();
+    document.querySelectorAll('.machine-filter-cb:checked').forEach(function(cb) {
+        newSelectedRows.add(parseInt(cb.dataset.machineRow));
+    });
+
+    // Drop saved state for machines that were deselected
+    Object.keys(savedAssignments).forEach(function(row) {
+        if (!newSelectedRows.has(parseInt(row))) {
+            delete savedAssignments[row];
+            const prefix = parseInt(row) + '-';
+            Object.keys(workerExtraTimes).forEach(function(k) { if (k.startsWith(prefix)) delete workerExtraTimes[k]; });
+            const mach = machines.find(function(m) { return m.row === parseInt(row); });
+            if (mach) {
+                Object.keys(workerAssignments).forEach(function(wc) {
+                    workerAssignments[wc] = workerAssignments[wc].filter(function(a) {
+                        return a.machineName !== mach.name;
+                    });
+                    if (!workerAssignments[wc].length) delete workerAssignments[wc];
+                });
+            }
+        }
+    });
+
+    selectedMachineRows = newSelectedRows;
+    renderScheduleInterface();
+    restoreAssignments();
     updateAssignmentSummary();
 }
 
@@ -275,64 +293,14 @@ function updateAssignmentSummary() {
 
 function selectAllMachines() {
     document.querySelectorAll('.machine-filter-cb').forEach(function(cb) { cb.checked = true; });
-    updateProceedButton();
+    onMachineSelectionChange();
 }
 
 function clearAllMachines() {
     document.querySelectorAll('.machine-filter-cb').forEach(function(cb) { cb.checked = false; });
-    updateProceedButton();
+    onMachineSelectionChange();
 }
 
-// ── Step transitions ──────────────────────────────────────────────────────────
-
-function showStepTwo() {
-    // Collect selected machine rows
-    const newSelectedRows = new Set();
-    document.querySelectorAll('.machine-filter-cb:checked').forEach(function(cb) {
-        newSelectedRows.add(parseInt(cb.dataset.machineRow));
-    });
-
-    if (!newSelectedRows.size) return;
-
-    // Drop saved state for machines that were deselected
-    Object.keys(savedAssignments).forEach(function(row) {
-        if (!newSelectedRows.has(parseInt(row))) {
-            delete savedAssignments[row];
-            const prefix = parseInt(row) + '-';
-            Object.keys(workerExtraTimes).forEach(function(k) { if (k.startsWith(prefix)) delete workerExtraTimes[k]; });
-            const mach = machines.find(function(m) { return m.row === parseInt(row); });
-            if (mach) {
-                Object.keys(workerAssignments).forEach(function(wc) {
-                    workerAssignments[wc] = workerAssignments[wc].filter(function(a) {
-                        return a.machineName !== mach.name;
-                    });
-                    if (!workerAssignments[wc].length) delete workerAssignments[wc];
-                });
-            }
-        }
-    });
-
-    selectedMachineRows = newSelectedRows;
-
-    // Rebuild the cards (restoreAssignments will re-fill saved state)
-    renderScheduleInterface();
-    restoreAssignments();
-
-    document.getElementById('stepOne').style.display = 'none';
-    document.getElementById('stepTwo').style.display = 'block';
-    document.getElementById('selectedMachineCount').textContent =
-        '(' + selectedMachineRows.size + ' machine' + (selectedMachineRows.size > 1 ? 's' : '') + ')';
-
-    window.scrollTo(0, 0);
-}
-
-function showStepOne() {
-    snapshotAssignments();
-    document.getElementById('stepTwo').style.display = 'none';
-    document.getElementById('stepOne').style.display = 'block';
-    updateAssignmentSummary();
-    window.scrollTo(0, 0);
-}
 
 function snapshotAssignments() {
     selectedMachineRows.forEach(function(machineRow) {
@@ -471,6 +439,11 @@ function renderScheduleInterface() {
     const selectedMachines = machines.filter(function(m) {
         return selectedMachineRows.has(m.row);
     });
+
+    if (!selectedMachines.length) {
+        container.innerHTML = '<p class="text-muted small py-2">Select machines above to assign workers.</p>';
+        return;
+    }
 
     selectedMachines.forEach(function(machine) {
         const card = document.createElement('div');
@@ -746,15 +719,14 @@ function applyScheduleToInterface(schedule) {
         const mach = machines.find(function(m) { return m.row === row; });
         cb.checked = mach && machineNames.has(mach.name);
     });
-    updateProceedButton();
 
     // Clear any previous saved state and start fresh from the loaded data
     savedAssignments = {};
     workerAssignments = {};
     workerExtraTimes  = {};
 
-    // Move to Step 2 (renders cards, then we fill them below)
-    showStepTwo();
+    // Render cards for selected machines
+    onMachineSelectionChange();
 
     // Group by machine; workers may appear multiple times (extra time blocks)
     const byMachine = {};
