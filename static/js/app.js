@@ -504,6 +504,7 @@ function renderScheduleInterface() {
                     }
                     updateAssignmentBadges();
                 }
+                snapshotAssignments();
             });
         });
 
