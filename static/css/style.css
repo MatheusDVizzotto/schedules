@@ -115,12 +115,24 @@ body {
 input[type="time"] { font-size: 0.95rem; }
 
 /* ── Step 1: Machine filter ───────────────────────────────────── */
+.machine-filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: flex-start;
+}
+.filter-col {
+    width: fit-content;
+    min-width: 110px;
+}
+@media (max-width: 575px) {
+    .filter-col { width: 100% !important; }
+}
 .filter-block {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 8px;
     padding: 12px;
-    height: 100%;
 }
 .filter-block-title {
     font-size: 0.72rem;

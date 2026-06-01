@@ -145,12 +145,12 @@ function renderMachineFilter() {
 
     function shortName(name) { return shortMachineName(name); }
 
-    var html = '<div class="row g-3">';
+    var html = '<div class="machine-filter-row">';
 
     MACHINE_BLOCKS.forEach(function(block, idx) {
         var list = blockMachines[idx];
         // Always show all 6 blocks, even if empty
-        html += '<div class="col-md-4 col-sm-6">';
+        html += '<div class="filter-col">';
         html += '<div class="filter-block" style="border-top: 3px solid ' + block.color.replace(/f/g, "c") + ';">';
         html += '<div class="filter-block-title" style="background:' + block.color + ';margin:-12px -12px 10px;padding:8px 12px;border-radius:6px 6px 0 0;">' + escapeHtml(block.label) + '</div>';
 
@@ -184,7 +184,7 @@ function renderMachineFilter() {
 
     // Unmatched machines (don't fit any block) — show in an extra block
     if (unmatched.length) {
-        html += '<div class="col-12">';
+        html += '<div class="filter-col" style="width:100%">';
         html += '<div class="filter-block">';
         html += '<div class="filter-block-title">Other Machines</div>';
         unmatched.forEach(function(machine) {
