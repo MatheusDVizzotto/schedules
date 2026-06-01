@@ -925,6 +925,7 @@ function updateWorkerAvailability() {
                 const item = cb.closest('.worker-item');
                 if (item) item.style.opacity = blocked ? '0.45' : '';
             } else {
+                cb.disabled = false;
                 const item = cb.closest('.worker-item');
                 if (item) item.style.opacity = '';
             }
