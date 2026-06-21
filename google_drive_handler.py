@@ -140,6 +140,59 @@ class GoogleDriveHandler:
 
     # ── File operations ───────────────────────────────────────────────
 
+    def get_file_mime_type(self, file_id: str) -> str:
+        try:
+            res = self.service.files().get(
+                fileId=file_id, fields='mimeType', supportsAllDrives=True
+            ).execute()
+            return res.get('mimeType', '')
+        except HttpError as e:
+            print(f"Warning: could not get mime type for {file_id}: {e}")
+            return ''
+
+    def export_file(self, file_id: str) -> io.BytesIO:
+        """Export a native Google Sheets file as xlsx bytes."""
+        try:
+            req = self.service.files().export_media(
+                fileId=file_id,
+                mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+            )
+            buf = io.BytesIO()
+            dl  = MediaIoBaseDownload(buf, req)
+            done = False
+            while not done:
+                _, done = dl.next_chunk()
+            buf.seek(0)
+            return buf
+        except HttpError as e:
+            raise RuntimeError(f"Drive export error {file_id}: {e}") from e
+
+    def delete_file(self, file_id: str):
+        try:
+            self.service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
+        except HttpError as e:
+            raise RuntimeError(f"Drive delete error {file_id}: {e}") from e
+
+    def create_sheets_file(self, filename: str, file_buffer: io.BytesIO,
+                           folder_id: str | None = None) -> str:
+        """Upload xlsx bytes and convert to a native Google Sheets file."""
+        try:
+            file_buffer.seek(0)
+            metadata = {'name': filename, 'mimeType': 'application/vnd.google-apps.spreadsheet'}
+            if folder_id:
+                metadata['parents'] = [folder_id]
+            media  = MediaIoBaseUpload(
+                file_buffer,
+                mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                resumable=True
+            )
+            result = self.service.files().create(
+                body=metadata, media_body=media, fields='id', supportsAllDrives=True
+            ).execute()
+            return result['id']
+        except HttpError as e:
+            raise RuntimeError(f"Drive create Sheets error '{filename}': {e}") from e
+
     def download_file(self, file_id: str) -> io.BytesIO:
         try:
             req    = self.service.files().get_media(fileId=file_id, supportsAllDrives=True)
