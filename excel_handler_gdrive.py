@@ -457,6 +457,7 @@ class ExcelHandlerGDrive:
                     self.workbook.remove(self.workbook['Sheet'])
                 print(f"  Creating new sheet: {sheet_name!r}")
             self._write_day_sheet(sheet, date, schedule_data, master_layout)
+            self.workbook.active = sheet   # open on this tab when the file is viewed
         else:
             # SAME_SHEET — write yellow cells into the master sheet
             sheet = self._active_sheet()
