@@ -19,7 +19,7 @@ import time as _time
 from config import (
     GOOGLE_DRIVE_FILE_ID, GOOGLE_DRIVE_FILENAME, USE_FILE_ID,
     MATRIX_FILE_ID, MATRIX_FILENAME, SCHEDULE_FOLDER_ID,
-    SECRET_KEY, DEBUG, HOST, PORT
+    SECRET_KEY, DEBUG, HOST, PORT, SCHEDULE_MODE
 )
 from auth import auth_bp, login_required
 
@@ -636,10 +636,19 @@ def save_schedule():
         # save_schedule_visual calls save() internally; for new files self.file_id is set there
         if not file_id:
             _register_monthly_file_id(schedule_date, handler.file_id)
+
+        # Capture the sheet's gid before closing so the URL opens on the right tab
+        sheet_gid = None
+        if SCHEDULE_MODE == 'NEW_SHEET_PER_DAY':
+            sheet_name = schedule_date.strftime('%d-%m-%y')
+            if sheet_name in handler.workbook.sheetnames:
+                sheet_gid = handler.workbook[sheet_name].sheet_id
+
         handler.close()
         invalidate_schedule_cache(schedule_date)
 
-        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit'
+        gid_fragment = f'#gid={sheet_gid}' if sheet_gid is not None else ''
+        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit{gid_fragment}'
         return jsonify({
             'success':    True,
             'message':    'Schedule saved successfully to Google Drive',
@@ -663,7 +672,6 @@ def check_schedule_date():
     except ValueError:
         return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
 
-    from config import SCHEDULE_MODE
     if SCHEDULE_MODE != 'NEW_SHEET_PER_DAY':
         return jsonify({'success': True, 'exists': False})
 
