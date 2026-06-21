@@ -648,10 +648,12 @@ def save_schedule():
 
         gid_fragment = f'#gid={sheet_gid}' if sheet_gid is not None else ''
         sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit{gid_fragment}'
+        print(f"  sheet_gid={sheet_gid}  url={sheets_url}")
         return jsonify({
             'success':    True,
             'message':    'Schedule saved successfully to Google Drive',
             'sheets_url': sheets_url,
+            'debug_gid':  sheet_gid,
         })
     except Exception as e:
         import traceback
