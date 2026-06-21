@@ -620,41 +620,42 @@ def save_schedule():
         from excel_handler_gdrive import ExcelHandlerGDrive
         import openpyxl as _xl
 
-        file_id = _find_monthly_file_id(schedule_date)
+        monthly_filename = f'schedule {schedule_date.strftime("%m/%y")}'
+        folder_id        = _get_schedule_folder()
+        file_id          = _find_monthly_file_id(schedule_date)
+
         handler = ExcelHandlerGDrive(file_id=file_id)
+        # Always save as native Sheets so the Sheets API can resolve tab gids
+        handler._create_as_sheets  = True
+        handler._sheets_filename   = monthly_filename
+        handler._sheets_folder_id  = folder_id
 
         if file_id:
-            # Existing monthly file — download and update
+            # Existing monthly file — download (handles both xlsx and native Sheets)
             handler.load()
         else:
-            # New month — build workbook in memory; Drive file created on save()
-            handler.workbook            = _xl.Workbook()
-            handler._create_filename    = f'schedule {schedule_date.strftime("%m/%y")}'
-            handler._create_folder_id   = _get_schedule_folder()
+            # New month — build workbook in memory
+            handler.workbook = _xl.Workbook()
 
         handler.save_schedule_visual(schedule_date, schedule_data, master_layout)
-        # save_schedule_visual calls save() internally; for new files self.file_id is set there
-        if not file_id:
-            _register_monthly_file_id(schedule_date, handler.file_id)
+        # save() deleted the old file and created a new native Sheets file;
+        # handler.file_id now points to the new Sheets file
+        _register_monthly_file_id(schedule_date, handler.file_id)
 
-        # Get the real Google Sheets gid via the Sheets API (Google assigns its own
-        # large random gids that don't match the xlsx sheetId from openpyxl)
         sheet_gid = None
         if SCHEDULE_MODE == 'NEW_SHEET_PER_DAY':
             sheet_name = schedule_date.strftime('%d-%m-%y')
-            sheet_gid = handler.gdrive.get_sheet_gid_api(handler.file_id, sheet_name)
+            sheet_gid  = handler.gdrive.get_sheet_gid_api(handler.file_id, sheet_name)
 
         handler.close()
         invalidate_schedule_cache(schedule_date)
 
         gid_fragment = f'#gid={sheet_gid}' if sheet_gid is not None else ''
-        sheets_url = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit{gid_fragment}'
-        print(f"  sheet_gid={sheet_gid}  url={sheets_url}")
+        sheets_url   = f'https://docs.google.com/spreadsheets/d/{handler.file_id}/edit{gid_fragment}'
         return jsonify({
             'success':    True,
             'message':    'Schedule saved successfully to Google Drive',
             'sheets_url': sheets_url,
-            'debug_gid':  sheet_gid,
         })
     except Exception as e:
         import traceback

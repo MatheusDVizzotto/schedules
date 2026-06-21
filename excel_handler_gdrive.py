@@ -49,6 +49,10 @@ class ExcelHandlerGDrive:
         # Set these before save() to create a brand-new Drive file instead of updating
         self._create_filename:  str | None = None
         self._create_folder_id: str | None = None
+        # Set these to have save() delete the old file and recreate as native Sheets
+        self._create_as_sheets:  bool      = False
+        self._sheets_filename:   str | None = None
+        self._sheets_folder_id:  str | None = None
 
         # Shared cell styles
         self.yellow_fill = PatternFill(start_color=YELLOW, end_color=YELLOW, fill_type="solid")
@@ -71,36 +75,54 @@ class ExcelHandlerGDrive:
     # ------------------------------------------------------------------
 
     def load(self):
-        """Download and parse the workbook from Google Drive."""
+        """Download and parse the workbook from Google Drive.
+        Handles both Drive-hosted xlsx files and native Google Sheets files."""
         if not self.file_id:
             raise ValueError("No file_id available — check config.py")
 
-        buf = self.gdrive.download_file(self.file_id)
+        mime = self.gdrive.get_file_mime_type(self.file_id)
+        if mime == 'application/vnd.google-apps.spreadsheet':
+            buf = self.gdrive.export_file(self.file_id)
+        else:
+            buf = self.gdrive.download_file(self.file_id)
         self.workbook = openpyxl.load_workbook(buf, data_only=True, keep_vba=False)
         return self.workbook
 
     def save(self):
         """Serialise and upload the workbook to Google Drive.
 
-        If file_id is already set, the existing file is updated.
-        If file_id is None but _create_filename is set, a new Drive file is
-        created and self.file_id is populated with the returned ID.
+        When _create_as_sheets is True: deletes the old file (xlsx or Sheets)
+        and creates a new native Google Sheets file so the Sheets API can be
+        used to resolve tab gids for URL navigation.
+
+        Otherwise: updates the existing file in place (xlsx).
         """
         if not self.workbook:
             raise RuntimeError("No workbook loaded — call load() first")
 
         buf = io.BytesIO()
         self.workbook.save(buf)
-        buf.seek(0)
 
-        if self.file_id:
-            self.gdrive.upload_file(self.file_id, buf)
-        elif self._create_filename:
-            self.file_id = self.gdrive.create_file(
-                self._create_filename, buf, folder_id=self._create_folder_id)
-            print(f"  Created Drive file: {self._create_filename!r} → {self.file_id}")
+        if self._create_as_sheets:
+            old_file_id = self.file_id
+            filename    = self._sheets_filename  or self._create_filename
+            folder_id   = self._sheets_folder_id or self._create_folder_id
+            buf.seek(0)
+            self.file_id = self.gdrive.create_sheets_file(filename, buf, folder_id=folder_id)
+            print(f"  Created Sheets file: {filename!r} → {self.file_id}")
+            if old_file_id:
+                self.gdrive.delete_file(old_file_id)
+                print(f"  Deleted old file: {old_file_id}")
         else:
-            raise ValueError("No file_id and no _create_filename — cannot save")
+            buf.seek(0)
+            if self.file_id:
+                self.gdrive.upload_file(self.file_id, buf)
+            elif self._create_filename:
+                self.file_id = self.gdrive.create_file(
+                    self._create_filename, buf, folder_id=self._create_folder_id)
+                print(f"  Created Drive file: {self._create_filename!r} → {self.file_id}")
+            else:
+                raise ValueError("No file_id and no _create_filename — cannot save")
 
     def close(self):
         if self.workbook:
