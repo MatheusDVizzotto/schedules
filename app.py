@@ -652,6 +652,34 @@ def save_schedule():
         return jsonify({'success': False, 'error': str(e), 'traceback': tb}), 500
 
 
+@app.route('/api/schedule/check_date', methods=['GET'])
+def check_schedule_date():
+    """Return whether a schedule sheet already exists for the given date."""
+    date_str = request.args.get('date')
+    if not date_str:
+        return jsonify({'success': False, 'error': 'date is required'}), 400
+    try:
+        schedule_date = datetime.strptime(date_str, '%Y-%m-%d').date()
+    except ValueError:
+        return jsonify({'success': False, 'error': 'date must be YYYY-MM-DD'}), 400
+
+    from config import SCHEDULE_MODE
+    if SCHEDULE_MODE != 'NEW_SHEET_PER_DAY':
+        return jsonify({'success': True, 'exists': False})
+
+    file_id = _find_monthly_file_id(schedule_date)
+    if not file_id:
+        return jsonify({'success': True, 'exists': False})
+
+    from excel_handler_gdrive import ExcelHandlerGDrive
+    handler = ExcelHandlerGDrive(file_id=file_id)
+    handler.load()
+    sheet_name = schedule_date.strftime('%d-%m-%y')
+    exists = sheet_name in handler.workbook.sheetnames
+    handler.close()
+    return jsonify({'success': True, 'exists': exists})
+
+
 @app.route('/api/schedule/<date_str>', methods=['GET'])
 def get_schedule(date_str):
     try:
