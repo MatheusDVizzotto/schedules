@@ -824,7 +824,20 @@ async function saveSchedule() {
     if (!scheduleData.length) { alert('Assign at least one worker before saving.'); return; }
 
     const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
-    if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) return;
+
+    // Check if a schedule already exists for this date
+    let alreadyExists = false;
+    try {
+        const checkRes  = await fetch('/api/schedule/check_date?date=' + dateInput);
+        const checkData = await checkRes.json();
+        alreadyExists   = checkData.success && checkData.exists;
+    } catch (_) { /* network hiccup — fall through to normal save */ }
+
+    if (alreadyExists) {
+        if (!confirm('The schedule for ' + formatDateDisplay(dateInput) + ' is already done.\n\nDo you want to overwrite this schedule?')) return;
+    } else {
+        if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) return;
+    }
 
     const btn  = document.getElementById('saveSchedule');
     const orig = btn.innerHTML;
