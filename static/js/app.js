@@ -870,7 +870,7 @@ async function saveSchedule() {
         const res  = await fetch('/api/schedule/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: dateInput, schedule: scheduleData }) });
         const data = await res.json();
         if (data.success) {
-            alert('\u2713 Saved to Google Drive!\n\nDate: ' + formatDateDisplay(dateInput) + '\nAssignments: ' + scheduleData.length + '\n\n[DEBUG] gid=' + data.debug_gid + '\nURL: ' + data.sheets_url);
+            alert('\u2713 Saved to Google Drive!\n\nDate: ' + formatDateDisplay(dateInput) + '\nAssignments: ' + scheduleData.length);
             if (data.sheets_url) {
                 window.open(data.sheets_url, '_blank');
             }
