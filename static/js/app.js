@@ -784,6 +784,27 @@ function applyScheduleToInterface(schedule) {
 
 // ── Save schedule ─────────────────────────────────────────────────────────────
 
+function showOverwriteModal(dateDisplay) {
+    return new Promise(function(resolve) {
+        document.getElementById('overwriteDateDisplay').textContent = dateDisplay;
+        const modalEl = document.getElementById('overwriteScheduleModal');
+        const modal   = new bootstrap.Modal(modalEl);
+
+        function onConfirm() {
+            modal.hide();
+            resolve(true);
+        }
+        function onDismiss() {
+            resolve(false);
+        }
+
+        document.getElementById('confirmOverwriteBtn').addEventListener('click', onConfirm, { once: true });
+        modalEl.addEventListener('hidden.bs.modal', onDismiss, { once: true });
+
+        modal.show();
+    });
+}
+
 async function saveSchedule() {
     const dateInput = document.getElementById('scheduleDate').value;
     if (!dateInput) { alert('Please select a date'); return; }
@@ -834,7 +855,8 @@ async function saveSchedule() {
     } catch (_) { /* network hiccup — fall through to normal save */ }
 
     if (alreadyExists) {
-        if (!confirm('The schedule for ' + formatDateDisplay(dateInput) + ' is already done.\n\nDo you want to overwrite this schedule?')) return;
+        const overwrite = await showOverwriteModal(formatDateDisplay(dateInput));
+        if (!overwrite) return;
     } else {
         if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) return;
     }

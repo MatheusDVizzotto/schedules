@@ -121,6 +121,28 @@
 
     </div>
 
+    <!-- Overwrite schedule confirmation modal -->
+    <div class="modal fade" id="overwriteScheduleModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-warning">
+                <div class="modal-header bg-warning">
+                    <h5 class="modal-title"><i class="fas fa-exclamation-triangle me-2"></i>Schedule Already Exists</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>The schedule for <strong id="overwriteDateDisplay"></strong> is already done.</p>
+                    <p class="mb-0">Do you want to overwrite this schedule?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Keep It</button>
+                    <button type="button" class="btn btn-warning" id="confirmOverwriteBtn">
+                        <i class="fas fa-save"></i> Yes, Overwrite
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/darkmode.js') }}"></script>
     <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
