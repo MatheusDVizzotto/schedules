@@ -641,8 +641,7 @@ def save_schedule():
         sheet_gid = None
         if SCHEDULE_MODE == 'NEW_SHEET_PER_DAY':
             sheet_name = schedule_date.strftime('%d-%m-%y')
-            if sheet_name in handler.workbook.sheetnames:
-                sheet_gid = handler.workbook[sheet_name].sheet_id
+            sheet_gid = handler.get_sheet_gid(sheet_name)
 
         handler.close()
         invalidate_schedule_cache(schedule_date)
