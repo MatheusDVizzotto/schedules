@@ -91,7 +91,6 @@ class ExcelHandlerGDrive:
 
         buf = io.BytesIO()
         self.workbook.save(buf)
-        self._last_buf = io.BytesIO(buf.getvalue())  # kept for get_sheet_gid()
         buf.seek(0)
 
         if self.file_id:
@@ -102,21 +101,6 @@ class ExcelHandlerGDrive:
             print(f"  Created Drive file: {self._create_filename!r} → {self.file_id}")
         else:
             raise ValueError("No file_id and no _create_filename — cannot save")
-
-    def get_sheet_gid(self, sheet_name: str) -> int | None:
-        """Return the sheetId (= Google Sheets gid) for a named sheet by reading
-        the serialised workbook XML. Must be called after save()."""
-        import zipfile, xml.etree.ElementTree as ET
-        if not hasattr(self, '_last_buf') or self._last_buf is None:
-            return None
-        self._last_buf.seek(0)
-        ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main'
-        with zipfile.ZipFile(self._last_buf) as z:
-            tree = ET.fromstring(z.read('xl/workbook.xml'))
-        for sh in tree.findall(f'{{{ns}}}sheets/{{{ns}}}sheet'):
-            if sh.get('name') == sheet_name:
-                return int(sh.get('sheetId'))
-        return None
 
     def close(self):
         if self.workbook:

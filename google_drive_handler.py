@@ -53,7 +53,8 @@ class GoogleDriveHandler:
                     self.creds = self._run_oauth_flow()
                     self._save_token(self.creds)
 
-        self.service = build('drive', 'v3', credentials=self.creds)
+        self.service        = build('drive',  'v3', credentials=self.creds)
+        self.sheets_service = build('sheets', 'v4', credentials=self.creds)
 
     def _creds_from_env(self) -> Credentials:
         """Reconstruct Credentials entirely from env vars (Render/production)."""
@@ -117,6 +118,25 @@ class GoogleDriveHandler:
         flow  = InstalledAppFlow.from_client_secrets_file(CREDENTIALS_PATH, SCOPES)
         creds = flow.run_local_server(port=AUTH_PORT)
         return creds
+
+    # ── Sheets API helpers ────────────────────────────────────────────
+
+    def get_sheet_gid_api(self, file_id: str, sheet_title: str) -> int | None:
+        """Return the Google Sheets gid for a named tab via the Sheets API.
+        Google assigns its own gids (large random ints) when it opens an xlsx —
+        these differ from the openpyxl sheetId values."""
+        try:
+            result = self.sheets_service.spreadsheets().get(
+                spreadsheetId=file_id,
+                fields='sheets.properties(sheetId,title)'
+            ).execute()
+            for s in result.get('sheets', []):
+                if s['properties']['title'] == sheet_title:
+                    return s['properties']['sheetId']
+            return None
+        except Exception as e:
+            print(f"Warning: Sheets API gid lookup failed: {e}")
+            return None
 
     # ── File operations ───────────────────────────────────────────────
 

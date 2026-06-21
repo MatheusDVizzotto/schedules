@@ -637,11 +637,12 @@ def save_schedule():
         if not file_id:
             _register_monthly_file_id(schedule_date, handler.file_id)
 
-        # Capture the sheet's gid before closing so the URL opens on the right tab
+        # Get the real Google Sheets gid via the Sheets API (Google assigns its own
+        # large random gids that don't match the xlsx sheetId from openpyxl)
         sheet_gid = None
         if SCHEDULE_MODE == 'NEW_SHEET_PER_DAY':
             sheet_name = schedule_date.strftime('%d-%m-%y')
-            sheet_gid = handler.get_sheet_gid(sheet_name)
+            sheet_gid = handler.gdrive.get_sheet_gid_api(handler.file_id, sheet_name)
 
         handler.close()
         invalidate_schedule_cache(schedule_date)
