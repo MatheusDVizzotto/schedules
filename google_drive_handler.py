@@ -171,6 +171,8 @@ class GoogleDriveHandler:
         try:
             self.service.files().delete(fileId=file_id, supportsAllDrives=True).execute()
         except HttpError as e:
+            if e.resp.status == 404:
+                return
             raise RuntimeError(f"Drive delete error {file_id}: {e}") from e
 
     def create_sheets_file(self, filename: str, file_buffer: io.BytesIO,
