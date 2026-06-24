@@ -844,29 +844,31 @@ async function saveSchedule() {
     if (errors.length) { alert('Please fix:\n\n' + errors.join('\n')); return; }
     if (!scheduleData.length) { alert('Assign at least one worker before saving.'); return; }
 
-    const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
-
-    // Check if a schedule already exists for this date
-    let alreadyExists = false;
-    try {
-        const checkRes  = await fetch('/api/schedule/check_date?date=' + dateInput);
-        const checkData = await checkRes.json();
-        alreadyExists   = checkData.success && checkData.exists;
-    } catch (_) { /* network hiccup — fall through to normal save */ }
-
-    if (alreadyExists) {
-        const overwrite = await showOverwriteModal(formatDateDisplay(dateInput));
-        if (!overwrite) return;
-    } else {
-        if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) return;
-    }
-
     const btn  = document.getElementById('saveSchedule');
+    if (btn.disabled) return;
     const orig = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
     try {
+        const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
+
+        // Check if a schedule already exists for this date
+        let alreadyExists = false;
+        try {
+            const checkRes  = await fetch('/api/schedule/check_date?date=' + dateInput);
+            const checkData = await checkRes.json();
+            alreadyExists   = checkData.success && checkData.exists;
+        } catch (_) { /* network hiccup - fall through to normal save */ }
+
+        let confirmed = false;
+        if (alreadyExists) {
+            confirmed = await showOverwriteModal(formatDateDisplay(dateInput));
+        } else {
+            confirmed = confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length);
+        }
+        if (!confirmed) return;
+
         const res  = await fetch('/api/schedule/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: dateInput, schedule: scheduleData }) });
         const data = await res.json();
         if (data.success) {
