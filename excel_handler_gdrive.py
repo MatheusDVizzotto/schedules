@@ -91,9 +91,8 @@ class ExcelHandlerGDrive:
     def save(self):
         """Serialise and upload the workbook to Google Drive.
 
-        When _create_as_sheets is True: deletes the old file (xlsx or Sheets)
-        and creates a new native Google Sheets file so the Sheets API can be
-        used to resolve tab gids for URL navigation.
+        When _create_as_sheets is True: updates the existing Sheets file in
+        place, or creates a new one if no file_id exists yet.
 
         Otherwise: updates the existing file in place (xlsx).
         """

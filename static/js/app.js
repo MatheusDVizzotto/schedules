@@ -314,8 +314,8 @@ function snapshotAssignments() {
             const key = machineRow + '-' + wc;
             checkedWorkers.push({
                 col:        wc,
-                timeStart:  tsEl ? tsEl.value : '',
-                timeFinish: tfEl ? tfEl.value : '',
+                timeStart:  tsEl ? getTime(tsEl) : '',
+                timeFinish: tfEl ? getTime(tfEl) : '',
                 extraTimes: (workerExtraTimes[key] || []).map(function(t) { return Object.assign({}, t); })
             });
         });
@@ -347,8 +347,8 @@ function restoreAssignments() {
             if (timesDiv) timesDiv.style.display = 'flex';
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
-            if (tsEl) tsEl.value = w.timeStart  || defaultStart(mach.name);
-            if (tfEl) tfEl.value = w.timeFinish || defaultFinish(mach.name);
+            if (tsEl) setTime(tsEl, w.timeStart  || defaultStart(mach.name));
+            if (tfEl) setTime(tfEl, w.timeFinish || defaultFinish(mach.name));
             if (!workerAssignments[w.col]) workerAssignments[w.col] = [];
             const exists = workerAssignments[w.col].find(function(a) { return a.machineName === mach.name; });
             if (!exists) {
@@ -385,7 +385,26 @@ function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
-// Merge sorted blocks and return the first available slot after the contiguous opening group.
+function fmt12(hhmm) {
+    if (!hhmm || hhmm === '--:--') return hhmm;
+    var parts = hhmm.split(':');
+    var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return hhmm;
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' + m : m) + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+
+function getTime(input) {
+    return input ? (input.dataset.time24 || input.value) : '--:--';
+}
+
+function setTime(input, hhmm) {
+    if (!input) return;
+    input.dataset.time24 = hhmm;
+    input.value = fmt12(hhmm);
+}
+
+// Merge sorted blocks and return the first available slot.
+// Checks for a gap before the first assignment first, then gaps after.
 // Returns {timeStart, timeFinish} or null when no valid blocks exist.
 function firstAvailableSlot(blocks, machName) {
     const valid = blocks.filter(function(b) {
@@ -393,6 +412,11 @@ function firstAvailableSlot(blocks, machName) {
     });
     if (!valid.length) return null;
     valid.sort(function(a, b) { return a.timeStart.localeCompare(b.timeStart); });
+    var shiftStart = defaultStart(machName);
+    // If the first assignment doesn't start at the shift start, the gap before it is free.
+    if (valid[0].timeStart > shiftStart) {
+        return { timeStart: shiftStart, timeFinish: valid[0].timeStart };
+    }
     var latestFinish = valid[0].timeFinish;
     var nextStart = null;
     for (var i = 1; i < valid.length; i++) {
@@ -484,11 +508,11 @@ function renderScheduleInterface() {
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const smart = smartDefaultTimesAllMachines(workerCol, machName);
                     if (smart) {
-                        if (tsEl) tsEl.value = smart.timeStart;
-                        if (tfEl) tfEl.value = smart.timeFinish;
+                        if (tsEl) setTime(tsEl, smart.timeStart);
+                        if (tfEl) setTime(tfEl, smart.timeFinish);
                     }
-                    const ts = tsEl ? tsEl.value : '--:--';
-                    const tf = tfEl ? tfEl.value : '--:--';
+                    const ts = tsEl ? getTime(tsEl) : '--:--';
+                    const tf = tfEl ? getTime(tfEl) : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
                     const exists = workerAssignments[workerCol].find(function(a) { return a.machineName === machName; });
                     if (!exists) {
@@ -517,8 +541,8 @@ function renderScheduleInterface() {
                 const machName  = mach ? mach.name : '';
                 const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                 const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
-                const ts = tsEl ? tsEl.value : '--:--';
-                const tf = tfEl ? tfEl.value : '--:--';
+                const ts = tsEl ? getTime(tsEl) : '--:--';
+                const tf = tfEl ? getTime(tfEl) : '--:--';
                 if (workerAssignments[workerCol]) {
                     const a = workerAssignments[workerCol].find(function(x) { return x.machineName === machName; });
                     if (a) { a.timeStart = ts || '--:--'; a.timeFinish = tf || '--:--'; }
@@ -562,25 +586,27 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
             '<span class="badge bg-secondary">+' + (idx + 1) + '</span>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Start</label>' +
-              '<input type="time" class="form-control form-control-sm"' +
-                     ' value="' + block.timeStart + '">' +
+              '<input type="text" readonly class="form-control form-control-sm cp-time"' +
+                     ' data-time24="' + block.timeStart + '"' +
+                     ' value="' + fmt12(block.timeStart) + '">' +
             '</div>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Finish</label>' +
-              '<input type="time" class="form-control form-control-sm"' +
-                     ' value="' + block.timeFinish + '">' +
+              '<input type="text" readonly class="form-control form-control-sm cp-time"' +
+                     ' data-time24="' + block.timeFinish + '"' +
+                     ' value="' + fmt12(block.timeFinish) + '">' +
             '</div>' +
             '<button type="button" class="btn btn-sm btn-outline-danger">' +
               '<i class="fas fa-times"></i>' +
             '</button>';
 
-        const inputs = row.querySelectorAll('input[type="time"]');
+        const inputs = row.querySelectorAll('input.cp-time');
         inputs[0].addEventListener('change', function() {
-            workerExtraTimes[key][idx].timeStart = this.value;
+            workerExtraTimes[key][idx].timeStart = this.dataset.time24 || this.value;
             syncExtraBlockBadges(machineRow, workerCol);
         });
         inputs[1].addEventListener('change', function() {
-            workerExtraTimes[key][idx].timeFinish = this.value;
+            workerExtraTimes[key][idx].timeFinish = this.dataset.time24 || this.value;
             syncExtraBlockBadges(machineRow, workerCol);
         });
         row.querySelector('button').addEventListener('click', function() {
@@ -665,17 +691,19 @@ function renderWorkersList(machine) {
               '<div class="worker-times align-items-center gap-2 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Start</label>' +
-                  '<input type="time" class="form-control form-control-sm time-start-worker"' +
+                  '<input type="text" readonly class="form-control form-control-sm time-start-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         ' value="' + defStart + '">' +
+                         ' data-time24="' + defStart + '"' +
+                         ' value="' + fmt12(defStart) + '">' +
                 '</div>' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Finish</label>' +
-                  '<input type="time" class="form-control form-control-sm time-finish-worker"' +
+                  '<input type="text" readonly class="form-control form-control-sm time-finish-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         ' value="' + defEnd + '">' +
+                         ' data-time24="' + defEnd + '"' +
+                         ' value="' + fmt12(defEnd) + '">' +
                 '</div>' +
                 '<button type="button" class="btn btn-sm btn-outline-secondary add-worker-time-block"' +
                         ' data-machine-row="' + machine.row + '" data-worker-col="' + worker.col + '"' +
@@ -761,8 +789,8 @@ function applyScheduleToInterface(schedule) {
             if (timesDiv) timesDiv.style.display = 'flex';
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
-            if (tsEl) tsEl.value = first.time_start;
-            if (tfEl) tfEl.value = first.time_finish;
+            if (tsEl) setTime(tsEl, first.time_start);
+            if (tfEl) setTime(tfEl, first.time_finish);
             if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
             workerAssignments[worker.col].push({ machineName: machineName, timeStart: first.time_start || '--:--', timeFinish: first.time_finish || '--:--' });
 
@@ -806,8 +834,12 @@ function showOverwriteModal(dateDisplay) {
 }
 
 async function saveSchedule() {
+    const btn  = document.getElementById('saveSchedule');
+    if (btn.disabled) return;
+    btn.disabled = true;
+
     const dateInput = document.getElementById('scheduleDate').value;
-    if (!dateInput) { alert('Please select a date'); return; }
+    if (!dateInput) { btn.disabled = false; alert('Please select a date'); return; }
 
     const scheduleData = [];
     const errors       = [];
@@ -825,8 +857,8 @@ async function saveSchedule() {
             if (!worker) return;
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
-            const ts = tsEl ? tsEl.value : '';
-            const tf = tfEl ? tfEl.value : '';
+            const ts = tsEl ? getTime(tsEl) : '';
+            const tf = tfEl ? getTime(tfEl) : '';
             if (!ts || !tf) { missingTimes.push(worker.name); return; }
             scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: ts, time_finish: tf, notes: notes });
 
@@ -841,34 +873,30 @@ async function saveSchedule() {
         if (missingTimes.length) errors.push(machine.name + ': set times for ' + missingTimes.join(', '));
     });
 
-    if (errors.length) { alert('Please fix:\n\n' + errors.join('\n')); return; }
-    if (!scheduleData.length) { alert('Assign at least one worker before saving.'); return; }
+    if (errors.length) { btn.disabled = false; alert('Please fix:\n\n' + errors.join('\n')); return; }
+    if (!scheduleData.length) { btn.disabled = false; alert('Assign at least one worker before saving.'); return; }
 
-    const btn  = document.getElementById('saveSchedule');
-    if (btn.disabled) return;
+    const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
+
+    // Check if a schedule already exists for this date
+    let alreadyExists = false;
+    try {
+        const checkRes  = await fetch('/api/schedule/check_date?date=' + dateInput);
+        const checkData = await checkRes.json();
+        alreadyExists   = checkData.success && checkData.exists;
+    } catch (_) { /* network hiccup — fall through to normal save */ }
+
+    if (alreadyExists) {
+        const overwrite = await showOverwriteModal(formatDateDisplay(dateInput));
+        if (!overwrite) { btn.disabled = false; return; }
+    } else {
+        if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) { btn.disabled = false; return; }
+    }
+
     const orig = btn.innerHTML;
-    btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
     try {
-        const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
-
-        // Check if a schedule already exists for this date
-        let alreadyExists = false;
-        try {
-            const checkRes  = await fetch('/api/schedule/check_date?date=' + dateInput);
-            const checkData = await checkRes.json();
-            alreadyExists   = checkData.success && checkData.exists;
-        } catch (_) { /* network hiccup - fall through to normal save */ }
-
-        let confirmed = false;
-        if (alreadyExists) {
-            confirmed = await showOverwriteModal(formatDateDisplay(dateInput));
-        } else {
-            confirmed = confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length);
-        }
-        if (!confirmed) return;
-
         const res  = await fetch('/api/schedule/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ date: dateInput, schedule: scheduleData }) });
         const data = await res.json();
         if (data.success) {
