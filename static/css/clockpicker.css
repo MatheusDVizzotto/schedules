@@ -27,11 +27,44 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 24px 20px 20px;
+    padding: 20px 20px 16px;
+    gap: 16px;
+}
+
+#cp-time-part {
+    display: flex;
+    align-items: center;
     font-size: 3.2rem;
     font-weight: 300;
     line-height: 1;
     gap: 2px;
+}
+
+#cp-ampm {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.cp-ampm-btn {
+    border: 1px solid rgba(255,255,255,0.4);
+    background: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 0.85rem;
+    font-weight: 600;
+    padding: 4px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    letter-spacing: 0.5px;
+    transition: background 0.12s, color 0.12s;
+}
+
+.cp-ampm-btn:hover { background: rgba(255,255,255,0.12); color: #fff; }
+
+.cp-ampm-active {
+    background: rgba(255,255,255,0.22) !important;
+    color: #fff !important;
+    border-color: rgba(255,255,255,0.7) !important;
 }
 
 .cp-seg {

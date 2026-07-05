@@ -1,14 +1,26 @@
 (function () {
     'use strict';
 
-    var CX = 120, CY = 120;
-    var R_OUTER = 88, R_INNER = 56, HIT_R = 20;
+    var CX = 120, CY = 120, R_OUTER = 88, HIT_R = 20;
 
     var el = {};
-    var state = { hour: 7, minute: 0, mode: 'hour', hover: -1, input: null };
+    var state = { hour12: 7, minute: 0, ampm: 'AM', mode: 'hour', hover: -1, input: null };
     var ready = false;
 
     function pad(n) { return n < 10 ? '0' + n : String(n); }
+
+    // 24h → 12h parts
+    function to12(h24) {
+        var ampm = h24 < 12 ? 'AM' : 'PM';
+        var h12  = h24 % 12 || 12;
+        return { hour12: h12, ampm: ampm };
+    }
+
+    // 12h + ampm → 24h hour
+    function to24(h12, ampm) {
+        if (ampm === 'AM') return h12 === 12 ? 0  : h12;
+        else               return h12 === 12 ? 12 : h12 + 12;
+    }
 
     function build() {
         if (ready) return;
@@ -24,9 +36,15 @@
         el.popup.id = 'cp-popup';
         el.popup.innerHTML =
             '<div id="cp-header">' +
-                '<span id="cp-hh" class="cp-seg active" title="Select hour"></span>' +
-                '<span class="cp-colon">:</span>' +
-                '<span id="cp-mm" class="cp-seg" title="Select minute"></span>' +
+                '<div id="cp-time-part">' +
+                    '<span id="cp-hh" class="cp-seg active" title="Select hour"></span>' +
+                    '<span class="cp-colon">:</span>' +
+                    '<span id="cp-mm" class="cp-seg" title="Select minute"></span>' +
+                '</div>' +
+                '<div id="cp-ampm">' +
+                    '<button id="cp-am" class="cp-ampm-btn" type="button">AM</button>' +
+                    '<button id="cp-pm" class="cp-ampm-btn" type="button">PM</button>' +
+                '</div>' +
             '</div>' +
             '<div id="cp-clock-wrap"><canvas id="cp-canvas" width="240" height="240"></canvas></div>' +
             '<div id="cp-footer">' +
@@ -39,11 +57,17 @@
 
         el.hh     = document.getElementById('cp-hh');
         el.mm     = document.getElementById('cp-mm');
+        el.amBtn  = document.getElementById('cp-am');
+        el.pmBtn  = document.getElementById('cp-pm');
         el.canvas = document.getElementById('cp-canvas');
         el.ctx    = el.canvas.getContext('2d');
 
         el.hh.addEventListener('click', function () { switchMode('hour'); });
         el.mm.addEventListener('click', function () { switchMode('minute'); });
+
+        el.amBtn.addEventListener('click', function () { state.ampm = 'AM'; updateHeader(); });
+        el.pmBtn.addEventListener('click', function () { state.ampm = 'PM'; updateHeader(); });
+
         document.getElementById('cp-cancel').addEventListener('click', function () { close(false); });
         document.getElementById('cp-ok').addEventListener('click', function () { close(true); });
 
@@ -62,12 +86,16 @@
         build();
         state.input = input;
         var parts = (input.value || '07:00').split(':');
-        state.hour   = parseInt(parts[0], 10);
-        state.minute = parseInt(parts[1], 10);
-        if (isNaN(state.hour))   state.hour = 7;
-        if (isNaN(state.minute)) state.minute = 0;
-        state.mode  = 'hour';
-        state.hover = -1;
+        var h24   = parseInt(parts[0], 10);
+        var m     = parseInt(parts[1], 10);
+        if (isNaN(h24)) h24 = 7;
+        if (isNaN(m))   m   = 0;
+        var t12       = to12(h24);
+        state.hour12  = t12.hour12;
+        state.ampm    = t12.ampm;
+        state.minute  = m;
+        state.mode    = 'hour';
+        state.hover   = -1;
         el.hh.classList.add('active');
         el.mm.classList.remove('active');
         draw();
@@ -77,7 +105,8 @@
     function close(confirm) {
         el.overlay.style.display = 'none';
         if (confirm && state.input) {
-            state.input.value = pad(state.hour) + ':' + pad(state.minute);
+            var h24 = to24(state.hour12, state.ampm);
+            state.input.value = pad(h24) + ':' + pad(state.minute);
             state.input.dispatchEvent(new Event('change', { bubbles: true }));
         }
         state.input = null;
@@ -91,6 +120,13 @@
         draw();
     }
 
+    function updateHeader() {
+        el.hh.textContent = pad(state.hour12);
+        el.mm.textContent = pad(state.minute);
+        el.amBtn.classList.toggle('cp-ampm-active', state.ampm === 'AM');
+        el.pmBtn.classList.toggle('cp-ampm-active', state.ampm === 'PM');
+    }
+
     function getItems() {
         var items = [];
         if (state.mode === 'hour') {
@@ -99,12 +135,6 @@
                 items.push({ val: i === 0 ? 12 : i,
                              x: CX + R_OUTER * Math.cos(rad),
                              y: CY + R_OUTER * Math.sin(rad) });
-            }
-            for (var i = 0; i < 12; i++) {
-                var rad = (i * 30 - 90) * Math.PI / 180;
-                items.push({ val: i === 0 ? 0 : i + 12,
-                             x: CX + R_INNER * Math.cos(rad),
-                             y: CY + R_INNER * Math.sin(rad) });
             }
         } else {
             for (var i = 0; i < 12; i++) {
@@ -123,18 +153,16 @@
 
         ctx.clearRect(0, 0, 240, 240);
 
-        // Clock face background
         ctx.fillStyle = dark ? '#2c2c2c' : '#eeeeee';
         ctx.beginPath();
         ctx.arc(CX, CY, 112, 0, 2 * Math.PI);
         ctx.fill();
 
         var items  = getItems();
-        var selVal = state.mode === 'hour' ? state.hour : state.minute;
+        var selVal = state.mode === 'hour' ? state.hour12 : state.minute;
         var selItem = null;
         items.forEach(function (it) { if (it.val === selVal) selItem = it; });
 
-        // Clock hand
         if (selItem) {
             ctx.strokeStyle = '#2d5a27';
             ctx.lineWidth = 2;
@@ -148,7 +176,6 @@
             ctx.fill();
         }
 
-        // Numbers
         items.forEach(function (item, idx) {
             var isSel   = item.val === selVal;
             var isHover = idx === state.hover && !isSel;
@@ -169,12 +196,10 @@
             ctx.font = '13px system-ui, sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText(pad(item.val), item.x, item.y);
+            ctx.fillText(String(item.val), item.x, item.y);
         });
 
-        // Update header
-        el.hh.textContent = pad(state.hour);
-        el.mm.textContent = pad(state.minute);
+        updateHeader();
     }
 
     function hitTest(e) {
@@ -197,7 +222,7 @@
         if (res.idx < 0) return;
         var val = res.items[res.idx].val;
         if (state.mode === 'hour') {
-            state.hour = val;
+            state.hour12 = val;
             switchMode('minute');
         } else {
             state.minute = val;
@@ -210,7 +235,6 @@
         if (res.idx !== state.hover) { state.hover = res.idx; draw(); }
     }
 
-    // Open on click for any cp-time input
     document.addEventListener('click', function (e) {
         if (e.target.matches('input.cp-time')) open(e.target);
     });
