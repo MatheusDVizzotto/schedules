@@ -834,8 +834,12 @@ function showOverwriteModal(dateDisplay) {
 }
 
 async function saveSchedule() {
+    const btn  = document.getElementById('saveSchedule');
+    if (btn.disabled) return;
+    btn.disabled = true;
+
     const dateInput = document.getElementById('scheduleDate').value;
-    if (!dateInput) { alert('Please select a date'); return; }
+    if (!dateInput) { btn.disabled = false; alert('Please select a date'); return; }
 
     const scheduleData = [];
     const errors       = [];
@@ -869,8 +873,8 @@ async function saveSchedule() {
         if (missingTimes.length) errors.push(machine.name + ': set times for ' + missingTimes.join(', '));
     });
 
-    if (errors.length) { alert('Please fix:\n\n' + errors.join('\n')); return; }
-    if (!scheduleData.length) { alert('Assign at least one worker before saving.'); return; }
+    if (errors.length) { btn.disabled = false; alert('Please fix:\n\n' + errors.join('\n')); return; }
+    if (!scheduleData.length) { btn.disabled = false; alert('Assign at least one worker before saving.'); return; }
 
     const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
 
@@ -884,15 +888,12 @@ async function saveSchedule() {
 
     if (alreadyExists) {
         const overwrite = await showOverwriteModal(formatDateDisplay(dateInput));
-        if (!overwrite) return;
+        if (!overwrite) { btn.disabled = false; return; }
     } else {
-        if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) return;
+        if (!confirm('Save schedule for ' + formatDateDisplay(dateInput) + '?\n\nMachines: ' + machineCount + '\nAssignments: ' + scheduleData.length)) { btn.disabled = false; return; }
     }
 
-    const btn  = document.getElementById('saveSchedule');
-    if (btn.disabled) return;
     const orig = btn.innerHTML;
-    btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
 
     try {
