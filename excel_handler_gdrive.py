@@ -91,9 +91,8 @@ class ExcelHandlerGDrive:
     def save(self):
         """Serialise and upload the workbook to Google Drive.
 
-        When _create_as_sheets is True: deletes the old file (xlsx or Sheets)
-        and creates a new native Google Sheets file so the Sheets API can be
-        used to resolve tab gids for URL navigation.
+        When _create_as_sheets is True: updates the existing Sheets file in
+        place, or creates a new one if no file_id exists yet.
 
         Otherwise: updates the existing file in place (xlsx).
         """
@@ -104,15 +103,19 @@ class ExcelHandlerGDrive:
         self.workbook.save(buf)
 
         if self._create_as_sheets:
-            old_file_id = self.file_id
-            filename    = self._sheets_filename  or self._create_filename
-            folder_id   = self._sheets_folder_id or self._create_folder_id
-            buf.seek(0)
-            self.file_id = self.gdrive.create_sheets_file(filename, buf, folder_id=folder_id)
-            print(f"  Created Sheets file: {filename!r} → {self.file_id}")
-            if old_file_id:
-                self.gdrive.delete_file(old_file_id)
-                print(f"  Deleted old file: {old_file_id}")
+            if self.file_id:
+                # Update existing Sheets file in place; Drive keeps the native Sheets
+                # format and converts the xlsx content automatically.
+                buf.seek(0)
+                self.gdrive.upload_file(self.file_id, buf)
+                print(f"  Updated Sheets file in place: {self.file_id}")
+            else:
+                # No file yet for this month — create a new native Sheets file.
+                filename  = self._sheets_filename  or self._create_filename
+                folder_id = self._sheets_folder_id or self._create_folder_id
+                buf.seek(0)
+                self.file_id = self.gdrive.create_sheets_file(filename, buf, folder_id=folder_id)
+                print(f"  Created Sheets file: {filename!r} → {self.file_id}")
         else:
             buf.seek(0)
             if self.file_id:

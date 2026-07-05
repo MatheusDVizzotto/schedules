@@ -890,6 +890,7 @@ async function saveSchedule() {
     }
 
     const btn  = document.getElementById('saveSchedule');
+    if (btn.disabled) return;
     const orig = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';

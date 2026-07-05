@@ -78,7 +78,7 @@ def get_excel_handler():
 _cache_lock = threading.Lock()
 _cached_handler = None
 _cached_at = 0.0
-CACHE_TTL = 60  # seconds
+CACHE_TTL = 10  # seconds
 
 
 def get_cached_handler():
