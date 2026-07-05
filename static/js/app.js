@@ -385,7 +385,8 @@ function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
 }
 
-// Merge sorted blocks and return the first available slot after the contiguous opening group.
+// Merge sorted blocks and return the first available slot.
+// Checks for a gap before the first assignment first, then gaps after.
 // Returns {timeStart, timeFinish} or null when no valid blocks exist.
 function firstAvailableSlot(blocks, machName) {
     const valid = blocks.filter(function(b) {
@@ -393,6 +394,11 @@ function firstAvailableSlot(blocks, machName) {
     });
     if (!valid.length) return null;
     valid.sort(function(a, b) { return a.timeStart.localeCompare(b.timeStart); });
+    var shiftStart = defaultStart(machName);
+    // If the first assignment doesn't start at the shift start, the gap before it is free.
+    if (valid[0].timeStart > shiftStart) {
+        return { timeStart: shiftStart, timeFinish: valid[0].timeStart };
+    }
     var latestFinish = valid[0].timeFinish;
     var nextStart = null;
     for (var i = 1; i < valid.length; i++) {
