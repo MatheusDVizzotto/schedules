@@ -568,19 +568,19 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
             '<span class="badge bg-secondary">+' + (idx + 1) + '</span>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Start</label>' +
-              '<input type="time" class="form-control form-control-sm"' +
+              '<input type="text" readonly class="form-control form-control-sm cp-time"' +
                      ' value="' + block.timeStart + '">' +
             '</div>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Finish</label>' +
-              '<input type="time" class="form-control form-control-sm"' +
+              '<input type="text" readonly class="form-control form-control-sm cp-time"' +
                      ' value="' + block.timeFinish + '">' +
             '</div>' +
             '<button type="button" class="btn btn-sm btn-outline-danger">' +
               '<i class="fas fa-times"></i>' +
             '</button>';
 
-        const inputs = row.querySelectorAll('input[type="time"]');
+        const inputs = row.querySelectorAll('input.cp-time');
         inputs[0].addEventListener('change', function() {
             workerExtraTimes[key][idx].timeStart = this.value;
             syncExtraBlockBadges(machineRow, workerCol);
@@ -671,14 +671,14 @@ function renderWorkersList(machine) {
               '<div class="worker-times align-items-center gap-2 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Start</label>' +
-                  '<input type="time" class="form-control form-control-sm time-start-worker"' +
+                  '<input type="text" readonly class="form-control form-control-sm time-start-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
                          ' value="' + defStart + '">' +
                 '</div>' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Finish</label>' +
-                  '<input type="time" class="form-control form-control-sm time-finish-worker"' +
+                  '<input type="text" readonly class="form-control form-control-sm time-finish-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
                          ' value="' + defEnd + '">' +
