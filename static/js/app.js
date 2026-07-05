@@ -789,8 +789,8 @@ function applyScheduleToInterface(schedule) {
             if (timesDiv) timesDiv.style.display = 'flex';
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + worker.col + '"]');
-            if (tsEl) tsEl.value = first.time_start;
-            if (tfEl) tfEl.value = first.time_finish;
+            if (tsEl) setTime(tsEl, first.time_start);
+            if (tfEl) setTime(tfEl, first.time_finish);
             if (!workerAssignments[worker.col]) workerAssignments[worker.col] = [];
             workerAssignments[worker.col].push({ machineName: machineName, timeStart: first.time_start || '--:--', timeFinish: first.time_finish || '--:--' });
 
@@ -853,8 +853,8 @@ async function saveSchedule() {
             if (!worker) return;
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machine.row + '"][data-worker-col="' + wc + '"]');
-            const ts = tsEl ? tsEl.value : '';
-            const tf = tfEl ? tfEl.value : '';
+            const ts = tsEl ? getTime(tsEl) : '';
+            const tf = tfEl ? getTime(tfEl) : '';
             if (!ts || !tf) { missingTimes.push(worker.name); return; }
             scheduleData.push({ machine: machine.name, worker: worker.name, role: getProficiency(machine.row, wc), time_start: ts, time_finish: tf, notes: notes });
 
