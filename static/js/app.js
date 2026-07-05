@@ -314,8 +314,8 @@ function snapshotAssignments() {
             const key = machineRow + '-' + wc;
             checkedWorkers.push({
                 col:        wc,
-                timeStart:  tsEl ? tsEl.value : '',
-                timeFinish: tfEl ? tfEl.value : '',
+                timeStart:  tsEl ? getTime(tsEl) : '',
+                timeFinish: tfEl ? getTime(tfEl) : '',
                 extraTimes: (workerExtraTimes[key] || []).map(function(t) { return Object.assign({}, t); })
             });
         });
@@ -347,8 +347,8 @@ function restoreAssignments() {
             if (timesDiv) timesDiv.style.display = 'flex';
             const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
             const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + row + '"][data-worker-col="' + w.col + '"]');
-            if (tsEl) tsEl.value = w.timeStart  || defaultStart(mach.name);
-            if (tfEl) tfEl.value = w.timeFinish || defaultFinish(mach.name);
+            if (tsEl) setTime(tsEl, w.timeStart  || defaultStart(mach.name));
+            if (tfEl) setTime(tfEl, w.timeFinish || defaultFinish(mach.name));
             if (!workerAssignments[w.col]) workerAssignments[w.col] = [];
             const exists = workerAssignments[w.col].find(function(a) { return a.machineName === mach.name; });
             if (!exists) {
@@ -383,6 +383,24 @@ function defaultStart(machineName) {
 
 function defaultFinish(machineName) {
     return machineName.endsWith(' - Arvo') ? '22:30' : '15:00';
+}
+
+function fmt12(hhmm) {
+    if (!hhmm || hhmm === '--:--') return hhmm;
+    var parts = hhmm.split(':');
+    var h = parseInt(parts[0], 10), m = parseInt(parts[1], 10);
+    if (isNaN(h) || isNaN(m)) return hhmm;
+    return (h % 12 || 12) + ':' + (m < 10 ? '0' + m : m) + ' ' + (h < 12 ? 'AM' : 'PM');
+}
+
+function getTime(input) {
+    return input ? (input.dataset.time24 || input.value) : '--:--';
+}
+
+function setTime(input, hhmm) {
+    if (!input) return;
+    input.dataset.time24 = hhmm;
+    input.value = fmt12(hhmm);
 }
 
 // Merge sorted blocks and return the first available slot.
@@ -490,11 +508,11 @@ function renderScheduleInterface() {
                     const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                     const smart = smartDefaultTimesAllMachines(workerCol, machName);
                     if (smart) {
-                        if (tsEl) tsEl.value = smart.timeStart;
-                        if (tfEl) tfEl.value = smart.timeFinish;
+                        if (tsEl) setTime(tsEl, smart.timeStart);
+                        if (tfEl) setTime(tfEl, smart.timeFinish);
                     }
-                    const ts = tsEl ? tsEl.value : '--:--';
-                    const tf = tfEl ? tfEl.value : '--:--';
+                    const ts = tsEl ? getTime(tsEl) : '--:--';
+                    const tf = tfEl ? getTime(tfEl) : '--:--';
                     if (!workerAssignments[workerCol]) workerAssignments[workerCol] = [];
                     const exists = workerAssignments[workerCol].find(function(a) { return a.machineName === machName; });
                     if (!exists) {
@@ -523,8 +541,8 @@ function renderScheduleInterface() {
                 const machName  = mach ? mach.name : '';
                 const tsEl = document.querySelector('.time-start-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
                 const tfEl = document.querySelector('.time-finish-worker[data-machine-row="' + machRow + '"][data-worker-col="' + workerCol + '"]');
-                const ts = tsEl ? tsEl.value : '--:--';
-                const tf = tfEl ? tfEl.value : '--:--';
+                const ts = tsEl ? getTime(tsEl) : '--:--';
+                const tf = tfEl ? getTime(tfEl) : '--:--';
                 if (workerAssignments[workerCol]) {
                     const a = workerAssignments[workerCol].find(function(x) { return x.machineName === machName; });
                     if (a) { a.timeStart = ts || '--:--'; a.timeFinish = tf || '--:--'; }
@@ -569,12 +587,14 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Start</label>' +
               '<input type="text" readonly class="form-control form-control-sm cp-time"' +
-                     ' value="' + block.timeStart + '">' +
+                     ' data-time24="' + block.timeStart + '"' +
+                     ' value="' + fmt12(block.timeStart) + '">' +
             '</div>' +
             '<div class="d-flex align-items-center gap-1">' +
               '<label class="form-label small mb-0 text-muted">Finish</label>' +
               '<input type="text" readonly class="form-control form-control-sm cp-time"' +
-                     ' value="' + block.timeFinish + '">' +
+                     ' data-time24="' + block.timeFinish + '"' +
+                     ' value="' + fmt12(block.timeFinish) + '">' +
             '</div>' +
             '<button type="button" class="btn btn-sm btn-outline-danger">' +
               '<i class="fas fa-times"></i>' +
@@ -582,11 +602,11 @@ function renderWorkerExtraTimes(machineRow, workerCol) {
 
         const inputs = row.querySelectorAll('input.cp-time');
         inputs[0].addEventListener('change', function() {
-            workerExtraTimes[key][idx].timeStart = this.value;
+            workerExtraTimes[key][idx].timeStart = this.dataset.time24 || this.value;
             syncExtraBlockBadges(machineRow, workerCol);
         });
         inputs[1].addEventListener('change', function() {
-            workerExtraTimes[key][idx].timeFinish = this.value;
+            workerExtraTimes[key][idx].timeFinish = this.dataset.time24 || this.value;
             syncExtraBlockBadges(machineRow, workerCol);
         });
         row.querySelector('button').addEventListener('click', function() {
@@ -674,14 +694,16 @@ function renderWorkersList(machine) {
                   '<input type="text" readonly class="form-control form-control-sm time-start-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         ' value="' + defStart + '">' +
+                         ' data-time24="' + defStart + '"' +
+                         ' value="' + fmt12(defStart) + '">' +
                 '</div>' +
                 '<div class="d-flex align-items-center gap-1">' +
                   '<label class="form-label small mb-0 text-muted">Finish</label>' +
                   '<input type="text" readonly class="form-control form-control-sm time-finish-worker cp-time"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         ' value="' + defEnd + '">' +
+                         ' data-time24="' + defEnd + '"' +
+                         ' value="' + fmt12(defEnd) + '">' +
                 '</div>' +
                 '<button type="button" class="btn btn-sm btn-outline-secondary add-worker-time-block"' +
                         ' data-machine-row="' + machine.row + '" data-worker-col="' + worker.col + '"' +

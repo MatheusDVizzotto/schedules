@@ -85,7 +85,8 @@
     function open(input) {
         build();
         state.input = input;
-        var parts = (input.value || '07:00').split(':');
+        var raw   = input.dataset.time24 || '07:00';
+        var parts = raw.split(':');
         var h24   = parseInt(parts[0], 10);
         var m     = parseInt(parts[1], 10);
         if (isNaN(h24)) h24 = 7;
@@ -106,7 +107,8 @@
         el.overlay.style.display = 'none';
         if (confirm && state.input) {
             var h24 = to24(state.hour12, state.ampm);
-            state.input.value = pad(h24) + ':' + pad(state.minute);
+            state.input.dataset.time24 = pad(h24) + ':' + pad(state.minute);
+            state.input.value          = state.hour12 + ':' + pad(state.minute) + ' ' + state.ampm;
             state.input.dispatchEvent(new Event('change', { bubbles: true }));
         }
         state.input = null;
