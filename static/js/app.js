@@ -470,9 +470,13 @@ function renderScheduleInterface() {
         return;
     }
 
+    const row = document.createElement('div');
+    row.className = 'row';
+    container.appendChild(row);
+
     selectedMachines.forEach(function(machine) {
         const card = document.createElement('div');
-        card.className = 'machine-card mb-3';
+        card.className = 'machine-card mb-3 col-12 col-lg-6';
         card.innerHTML =
             '<div class="card">' +
               '<div class="card-header">' +
@@ -489,7 +493,7 @@ function renderScheduleInterface() {
               '</div>' +
             '</div>';
 
-        container.appendChild(card);
+        row.appendChild(card);
 
         // Worker checkbox listeners — show/hide per-worker time inputs
         card.querySelectorAll('.worker-checkbox').forEach(function(cb) {
