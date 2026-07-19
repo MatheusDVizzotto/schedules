@@ -680,13 +680,13 @@ function renderWorkersList(machine) {
                          ' data-worker-col="' + worker.col + '"' +
                          (absence ? ' disabled title="Worker is absent"' : '') + '>' +
                   '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
+                    '<span class="' + badgeCls + ' me-1">' + display + '</span>' +
                     '<strong>' + escapeHtml(worker.name) + '</strong>' +
                     absenceBadge +
                     '<span class="worker-hours-badge badge ms-1" data-worker-col="' + worker.col + '" style="background-color:#e2e3e5;color:#41464b;">8.0h free</span>' +
                     '<span id="assignment-badge-' + worker.col + '"></span>' +
                   '</label>' +
                 '</div>' +
-                '<span class="' + badgeCls + '">' + display + '</span>' +
               '</div>' +
               '<div class="worker-times align-items-center gap-2 mt-1 ms-4" id="worker-times-' + machine.row + '-' + worker.col + '" style="display:none;">' +
                 '<div class="d-flex align-items-center gap-1">' +
