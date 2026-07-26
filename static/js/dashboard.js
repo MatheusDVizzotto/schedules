@@ -196,7 +196,7 @@ function renderWorkerCard(worker, assignments, colIdx) {
                 '</div>' +
                 (time ? '<span class="badge bg-primary time-badge ms-2 flex-shrink-0">' + escapeHtml(time) + '</span>' : '') +
               '</div>' +
-              (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes) + '</div>' : '') +
+              (a.notes ? '<div class="notes-text"><i class="fas fa-sticky-note me-1"></i>' + escapeHtml(a.notes).replace(/\n/g, '<br>') + '</div>' : '') +
             '</div>';
     });
 
