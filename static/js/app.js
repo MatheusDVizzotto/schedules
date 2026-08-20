@@ -665,7 +665,8 @@ function renderWorkersList(machine) {
         const badgeCls = getProficiencyBadgeClass(prof);
         const defStart = defaultStart(machine.name);
         const defEnd   = defaultFinish(machine.name);
-        const absence  = getActiveAbsence(worker.name);
+        const absence      = getActiveAbsence(worker.name);
+        const notQualified = !prof;
 
         const absenceBadge = absence
             ? '<span class="badge ms-1" style="background:#ffc107;color:#000;" title="Absent: ' +
@@ -674,15 +675,18 @@ function renderWorkersList(machine) {
               escapeHtml(absence.reason || 'Absent') + '</span>'
             : '';
 
+        const blocked = absence || notQualified;
+
         html +=
-            '<div class="worker-item mb-2' + (absence ? ' opacity-75' : '') + '">' +
+            '<div class="worker-item mb-2' + (blocked ? ' opacity-50' : '') + '">' +
               '<div class="d-flex align-items-center justify-content-between">' +
                 '<div class="form-check">' +
                   '<input class="form-check-input worker-checkbox" type="checkbox"' +
                          ' id="worker-' + machine.row + '-' + worker.col + '"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         (absence ? ' disabled title="Worker is absent"' : '') + '>' +
+                         (absence      ? ' disabled title="Worker is absent"'          : '') +
+                         (notQualified ? ' disabled title="Not qualified for this machine"' : '') + '>' +
                   '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
                     '<span class="' + badgeCls + ' me-1">' + display + '</span>' +
                     '<strong>' + escapeHtml(worker.name) + '</strong>' +
@@ -1013,7 +1017,7 @@ function getProficiencyBadgeClass(p) {
     const v = String(p).toLowerCase();
     if (v === 'proficient' || v === 'p')                                      return 'badge bg-success';
     if (v === 'expert'     || v === 'e')                                      return 'badge bg-primary';
-    if (v === 'competent'  || v === 'c')                                      return 'badge bg-warning text-dark';
+    if (v === 'competent'  || v === 'c')                                      return 'badge badge-competent';
     if (v === 'trainee'    || v === 't')                                      return 'badge bg-warning text-dark';
     if (p) return 'badge bg-secondary';
     return 'badge bg-light text-dark border';

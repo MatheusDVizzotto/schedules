@@ -16,7 +16,7 @@ const LEVELS = [
 const PROF_COLORS = {
     'E': '#BDD7EE',  // pastel blue
     'P': '#C6EFCE',  // pastel green  — matches Excel
-    'C': '#FFFF00',  // yellow        — matches Excel
+    'C': '#FFFF00',  // yellow
     'T': '#FCE4D6',  // pastel orange — matches Excel
     '':  '',         // white / no fill
 };

@@ -206,6 +206,7 @@ input[type="time"] { font-size: 0.95rem; }
 /* ── Badges ───────────────────────────────────────────────────── */
 .badge { font-size: 0.73rem; padding: 0.3em 0.6em; font-weight: 600; }
 [data-theme="dark"] .badge.bg-light { background-color: #3a3a3a !important; color: #ccc !important; }
+.badge-competent { background-color: #FFEA00 !important; color: #212529 !important; }
 
 /* ── Tables (proficiency matrix) ──────────────────────────────── */
 [data-theme="dark"] .table {
