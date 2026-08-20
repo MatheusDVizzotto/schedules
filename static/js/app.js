@@ -993,12 +993,16 @@ function updateWorkerAvailability() {
         });
 
         document.querySelectorAll('.worker-checkbox[data-worker-col="' + worker.col + '"]').forEach(function(cb) {
+            const machRow      = parseInt(cb.dataset.machineRow);
+            const notQualified = !getProficiency(machRow, worker.col);
+            const effectivelyBlocked = blocked || notQualified;
+
             if (!cb.checked) {
-                cb.disabled = blocked;
+                cb.disabled = effectivelyBlocked;
                 const item = cb.closest('.worker-item');
-                if (item) item.style.opacity = blocked ? '0.45' : '';
+                if (item) item.style.opacity = effectivelyBlocked ? '0.45' : '';
             } else {
-                cb.disabled = false;
+                cb.disabled = notQualified; // never allow re-check if not qualified
                 const item = cb.closest('.worker-item');
                 if (item) item.style.opacity = '';
             }
