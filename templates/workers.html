@@ -9,7 +9,7 @@
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
     <link rel="icon" href="https://www.bornagainpallets.com/favicon.ico" type="image/x-icon">
     <style>
-        .proficiency-matrix { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .proficiency-matrix { overflow-x: auto; overflow-y: auto; max-height: calc(100vh - 230px); -webkit-overflow-scrolling: touch; }
         .proficiency-matrix table { font-size: 0.82rem; min-width: 600px; }
         .proficiency-cell { min-width: 110px; }
         .machine-name {
@@ -19,7 +19,7 @@
             white-space: nowrap;
             position: sticky;
             left: 0;
-            z-index: 1;
+            z-index: 2;
         }
         .worker-header {
             background-color: var(--header-bg);
@@ -29,6 +29,15 @@
             text-orientation: mixed;
             min-height: 130px;
             vertical-align: bottom;
+            position: sticky;
+            top: 0;
+            z-index: 2;
+        }
+        thead .machine-name {
+            position: sticky;
+            top: 0;
+            left: 0;
+            z-index: 3;
         }
         .editable-name {
             border: 1px solid var(--input-border);
