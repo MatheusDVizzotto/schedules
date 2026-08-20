@@ -1,6 +1,9 @@
 // static/js/dashboard.js
 
-var currentDate = '';   // ISO YYYY-MM-DD
+var currentDate     = '';   // ISO YYYY-MM-DD
+var proficiencyData = {};   // {machineRow: {workerCol: value}}
+var machineRowByName = {};  // {machineName: row}
+var workerColByName  = {};  // {workerName: col}
 
 // ── Startup ───────────────────────────────────────────────────────────────────
 
@@ -60,8 +63,20 @@ async function loadDashboard(iso) {
         '</div>';
 
     try {
-        var res  = await fetch('/api/schedule/' + iso);
-        var data = await res.json();
+        var [schedRes, workersRes] = await Promise.all([
+            fetch('/api/schedule/' + iso),
+            fetch('/api/workers/all'),
+        ]);
+        var data        = await schedRes.json();
+        var workersData = await workersRes.json();
+
+        if (workersData.success) {
+            proficiencyData  = workersData.proficiencies || {};
+            machineRowByName = {};
+            workerColByName  = {};
+            (workersData.machines || []).forEach(function(m) { machineRowByName[m.name] = m.row; });
+            (workersData.workers  || []).forEach(function(w) { workerColByName[w.name]  = w.col; });
+        }
 
         if (!data.success) {
             showError('Error loading schedule: ' + data.error);
@@ -182,16 +197,20 @@ function renderWorkerCard(worker, assignments, colIdx) {
     assignments.slice().sort(function (a, b) {
         return (a.time_start || '').localeCompare(b.time_start || '');
     }).forEach(function (a) {
-        var name  = shortMachineName(a.machine);
-        var floor = floorLabel(a.machine);
-        var time  = (a.time_start && a.time_finish)
+        var name      = shortMachineName(a.machine);
+        var floor     = floorLabel(a.machine);
+        var time      = (a.time_start && a.time_finish)
             ? formatTime(a.time_start) + ' – ' + formatTime(a.time_finish)
+            : '';
+        var prof      = getWorkerMachineProficiency(worker, a.machine);
+        var profBadge = prof
+            ? '<span class="' + profBadgeClass(prof) + ' ms-1" style="font-size:0.65rem;">' + profDisplay(prof) + '</span>'
             : '';
         assignmentsHtml +=
             '<div class="machine-block">' +
               '<div class="d-flex justify-content-between align-items-start">' +
                 '<div>' +
-                  '<div class="fw-semibold small">' + escapeHtml(name) + '</div>' +
+                  '<div class="fw-semibold small">' + escapeHtml(name) + profBadge + '</div>' +
                   (floor ? '<div class="machine-label">' + escapeHtml(floor) + ' Floor</div>' : '') +
                 '</div>' +
                 (time ? '<span class="badge bg-primary time-badge ms-2 flex-shrink-0">' + escapeHtml(time) + '</span>' : '') +
@@ -214,6 +233,36 @@ function renderWorkerCard(worker, assignments, colIdx) {
           '</div>' +
         '</div>'
     );
+}
+
+// ── Proficiency helpers ───────────────────────────────────────────────────────
+
+function getWorkerMachineProficiency(workerName, machineName) {
+    var baseName = machineName.replace(/ - Day$/, '').replace(/ - Arvo$/, '');
+    var row = machineRowByName[baseName] || machineRowByName[machineName];
+    var col = workerColByName[workerName];
+    if (!row || !col) return '';
+    var rowData = proficiencyData[String(row)];
+    if (!rowData) return '';
+    return rowData[String(col)] || '';
+}
+
+function profBadgeClass(p) {
+    var v = String(p).toLowerCase();
+    if (v === 'p' || v === 'proficient' || v === 'mr') return 'badge bg-success';
+    if (v === 'e' || v === 'expert')                   return 'badge bg-primary';
+    if (v === 'c' || v === 'competent')                return 'badge badge-competent';
+    if (v === 't' || v === 'trainee')                  return 'badge bg-warning text-dark';
+    return '';
+}
+
+function profDisplay(p) {
+    var v = String(p).toLowerCase();
+    if (v === 'p' || v === 'proficient' || v === 'mr') return 'Proficient';
+    if (v === 'e' || v === 'expert')                   return 'Expert';
+    if (v === 'c' || v === 'competent')                return 'Competent';
+    if (v === 't' || v === 'trainee')                  return 'Trainee';
+    return '';
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
