@@ -994,15 +994,29 @@ function updateWorkerAvailability() {
 
         document.querySelectorAll('.worker-checkbox[data-worker-col="' + worker.col + '"]').forEach(function(cb) {
             const machRow      = parseInt(cb.dataset.machineRow);
-            const notQualified = !getProficiency(machRow, worker.col);
-            const effectivelyBlocked = blocked || notQualified;
+            const prof         = getProficiency(machRow, worker.col);
+            const profVal      = String(prof).toLowerCase();
+            const notQualified = !prof;
+
+            let prereqBlocked = false;
+            let prereqTitle   = '';
+            if (profVal === 't' || profVal === 'trainee') {
+                const hasExpert = machineHasLevel(machRow, function(v) { return v === 'e' || v === 'expert'; });
+                if (!hasExpert) { prereqBlocked = true; prereqTitle = 'Requires an Expert to be assigned first'; }
+            } else if (profVal === 'c' || profVal === 'competent') {
+                const hasProfOrExp = machineHasLevel(machRow, function(v) { return v === 'e' || v === 'expert' || v === 'p' || v === 'proficient' || v === 'mr'; });
+                if (!hasProfOrExp) { prereqBlocked = true; prereqTitle = 'Requires a Proficient or Expert to be assigned first'; }
+            }
+
+            const effectivelyBlocked = blocked || notQualified || prereqBlocked;
+            if (prereqTitle) cb.title = prereqTitle;
 
             if (!cb.checked) {
                 cb.disabled = effectivelyBlocked;
                 const item = cb.closest('.worker-item');
                 if (item) item.style.opacity = effectivelyBlocked ? '0.45' : '';
             } else {
-                cb.disabled = notQualified; // never allow re-check if not qualified
+                cb.disabled = notQualified;
                 const item = cb.closest('.worker-item');
                 if (item) item.style.opacity = '';
             }
@@ -1011,6 +1025,20 @@ function updateWorkerAvailability() {
 }
 
 // ── Proficiency helpers ───────────────────────────────────────────────────────
+
+function getAssignedWorkerColsForMachine(machineRow) {
+    const mach = machines.find(function(m) { return m.row === machineRow; });
+    if (!mach) return [];
+    return Object.keys(workerAssignments).filter(function(wc) {
+        return workerAssignments[wc].some(function(a) { return a.machineName === mach.name; });
+    }).map(Number);
+}
+
+function machineHasLevel(machineRow, levelTest) {
+    return getAssignedWorkerColsForMachine(machineRow).some(function(wc) {
+        return levelTest(String(getProficiency(machineRow, wc)).toLowerCase());
+    });
+}
 
 function getProficiency(machineRow, workerCol) {
     const r = String(machineRow), c = String(workerCol);
