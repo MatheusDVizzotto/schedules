@@ -1011,9 +1011,10 @@ function getProficiency(machineRow, workerCol) {
 
 function getProficiencyBadgeClass(p) {
     const v = String(p).toLowerCase();
-    if (v.includes('main') || v === 'main role') return 'badge bg-primary';
-    if (v.includes('competent') || v === 'c')    return 'badge bg-success';
-    if (v.includes('trainee')   || v === 't')    return 'badge bg-warning text-dark';
+    if (v === 'proficient' || v === 'p')                                      return 'badge bg-success';
+    if (v === 'expert'     || v === 'e')                                      return 'badge bg-primary';
+    if (v === 'competent'  || v === 'c')                                      return 'badge bg-warning text-dark';
+    if (v === 'trainee'    || v === 't')                                      return 'badge bg-warning text-dark';
     if (p) return 'badge bg-secondary';
     return 'badge bg-light text-dark border';
 }
@@ -1021,9 +1022,10 @@ function getProficiencyBadgeClass(p) {
 function getProficiencyDisplay(p) {
     if (!p) return 'Not Qualified';
     const v = String(p).toLowerCase();
-    if (v.includes('main')      || v === 'main role') return 'Main Role';
-    if (v.includes('competent') || v === 'c')         return 'Competent';
-    if (v.includes('trainee')   || v === 't')         return 'Trainee';
+    if (v === 'proficient' || v === 'p')                                      return 'Proficient';
+    if (v === 'expert'     || v === 'e')                                      return 'Expert';
+    if (v === 'competent'  || v === 'c')                                      return 'Competent';
+    if (v === 'trainee'    || v === 't')                                      return 'Trainee';
     return p;
 }
 

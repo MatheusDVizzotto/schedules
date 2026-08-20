@@ -6,17 +6,19 @@ let proficiencies = {};   // {row: {col: value}}  — int keys from API
 let changes       = {};   // {row: {col: newValue}} — pending edits
 
 const LEVELS = [
-    { value: 'MR', label: 'Main Role' },
-    { value: 'C',  label: 'Competent' },
-    { value: 'T',  label: 'Trainee'   },
-    { value: '',   label: 'None'      },
+    { value: 'E', label: 'Expert'     },
+    { value: 'P', label: 'Proficient' },
+    { value: 'C', label: 'Competent'  },
+    { value: 'T', label: 'Trainee'    },
+    { value: '',  label: 'None'       },
 ];
 
 const PROF_COLORS = {
-    'MR': '#C6EFCE',  // pastel green  — matches Excel
-    'C':  '#FFFF00',  // yellow        — matches Excel
-    'T':  '#FCE4D6',  // pastel orange — matches Excel
-    '':   '',         // white / no fill
+    'E': '#BDD7EE',  // pastel blue
+    'P': '#C6EFCE',  // pastel green  — matches Excel
+    'C': '#FFFF00',  // yellow        — matches Excel
+    'T': '#FCE4D6',  // pastel orange — matches Excel
+    '':  '',         // white / no fill
 };
 
 // Map any raw spreadsheet value → our canonical value
@@ -24,9 +26,10 @@ const PROF_COLORS = {
 function normaliseProf(raw) {
     if (!raw) return '';
     const v = String(raw).trim().toLowerCase();
-    if (v === 'mr' || v === 'main role' || v === 'main' || v === '1') return 'MR';
-    if (v === 'c'  || v === 'competent' || v === '2')                  return 'C';
-    if (v === 't'  || v === 'trainee'   || v === '3')                  return 'T';
+    if (v === 'p' || v === 'proficient' || v === '1')                                                    return 'P';
+    if (v === 'c' || v === 'competent' || v === '2')                                                     return 'C';
+    if (v === 't' || v === 'trainee'   || v === '3')                                                     return 'T';
+    if (v === 'e' || v === 'expert' || v === '4')                                                        return 'E';
     // Unknown value — return as-is so we can see it in the dropdown
     return String(raw).trim();
 }
