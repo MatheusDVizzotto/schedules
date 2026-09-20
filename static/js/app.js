@@ -856,7 +856,10 @@ async function saveSchedule() {
         const notes   = (document.querySelector('.machine-notes[data-machine-row="' + machine.row + '"]').value || '').trim();
         const checked = document.querySelectorAll('.worker-checkbox[data-machine-row="' + machine.row + '"]:checked');
 
-        if (!checked.length) return;   // no workers — skip silently
+        if (!checked.length) {
+            if (notes) scheduleData.push({ machine: machine.name, worker: 'No Worker', role: '', time_start: '07:00', time_finish: '15:00', notes: notes });
+            return;
+        }
 
         const missingTimes = [];
         checked.forEach(function(cb) {
@@ -882,7 +885,7 @@ async function saveSchedule() {
     });
 
     if (errors.length) { btn.disabled = false; alert('Please fix:\n\n' + errors.join('\n')); return; }
-    if (!scheduleData.length) { btn.disabled = false; alert('Assign at least one worker before saving.'); return; }
+    if (!scheduleData.length) { btn.disabled = false; alert('Assign at least one worker or add notes to a machine before saving.'); return; }
 
     const machineCount = new Set(scheduleData.map(function(s) { return s.machine; })).size;
 
