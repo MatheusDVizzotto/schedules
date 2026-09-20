@@ -1022,6 +1022,51 @@ function updateWorkerAvailability() {
             }
         });
     });
+    updateUnassignedPanel();
+}
+
+function updateUnassignedPanel() {
+    const panel    = document.getElementById('unassignedPanel');
+    const body     = document.getElementById('unassignedPanelBody');
+    const countEl  = document.getElementById('unassignedCount');
+    if (!panel || !workers.length) return;
+
+    panel.classList.remove('d-none');
+
+    const unassigned = workers
+        .filter(function(w) {
+            return !getActiveAbsence(w.name) && calcWorkerMinutes(w.col) < 450;
+        })
+        .sort(function(a, b) {
+            return calcWorkerMinutes(a.col) - calcWorkerMinutes(b.col);
+        });
+
+    countEl.textContent = unassigned.length;
+
+    if (!unassigned.length) {
+        body.innerHTML = '<div class="unassigned-panel-item all-done"><i class="fas fa-check-circle me-1"></i>All workers assigned</div>';
+        return;
+    }
+
+    body.innerHTML = unassigned.map(function(w) {
+        const usedMins = calcWorkerMinutes(w.col);
+        const freeMins = Math.max(0, 480 - usedMins);
+        const freeHrs  = (freeMins / 60).toFixed(1);
+        const bgColor  = usedMins === 0 ? '#f8d7da' : '#fff3cd';
+        const txtColor = usedMins === 0 ? '#842029' : '#664d00';
+        return '<div class="unassigned-panel-item">' +
+            '<span>' + escapeHtml(w.name) + '</span>' +
+            '<span class="badge" style="background:' + bgColor + ';color:' + txtColor + ';">' + freeHrs + 'h free</span>' +
+        '</div>';
+    }).join('');
+}
+
+function toggleUnassignedPanel() {
+    const panel   = document.getElementById('unassignedPanel');
+    const chevron = document.getElementById('unassignedPanelChevron');
+    panel.classList.toggle('collapsed');
+    chevron.classList.toggle('fa-chevron-up');
+    chevron.classList.toggle('fa-chevron-down');
 }
 
 // ── Proficiency helpers ───────────────────────────────────────────────────────

@@ -203,6 +203,52 @@ input[type="time"] { font-size: 0.95rem; }
     color: #75c990;
 }
 
+/* ── Unassigned workers floating panel ───────────────────────── */
+.unassigned-panel {
+    position: fixed;
+    bottom: 0;
+    right: 16px;
+    width: 280px;
+    max-width: calc(100vw - 32px);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 -4px 16px rgba(0,0,0,0.18);
+    z-index: 1050;
+}
+.unassigned-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: #2d5a27;
+    color: #fff;
+    border-radius: 8px 8px 0 0;
+    font-size: 0.83rem;
+    font-weight: 600;
+    cursor: pointer;
+    user-select: none;
+}
+.unassigned-panel.collapsed .unassigned-panel-body { display: none; }
+.unassigned-panel.collapsed .unassigned-panel-header { border-radius: 8px 8px 0 0; }
+.unassigned-panel-body {
+    max-height: 220px;
+    overflow-y: auto;
+}
+.unassigned-panel-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 5px 12px;
+    font-size: 0.81rem;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+}
+.unassigned-panel-item:last-child { border-bottom: none; }
+.unassigned-panel-item.all-done { color: #198754; font-weight: 600; }
+[data-theme="dark"] .unassigned-panel-header { background: #3a7a32; }
+
 /* ── Badges ───────────────────────────────────────────────────── */
 .badge { font-size: 0.73rem; padding: 0.3em 0.6em; font-weight: 600; }
 [data-theme="dark"] .badge.bg-light { background-color: #3a3a3a !important; color: #ccc !important; }
