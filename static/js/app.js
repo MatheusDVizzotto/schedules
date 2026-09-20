@@ -1065,6 +1065,64 @@ function getProficiencyDisplay(p) {
     return p;
 }
 
+async function refreshProficiency() {
+    const btn  = document.getElementById('refreshProficiencyBtn');
+    const icon = btn.querySelector('i');
+    btn.disabled = true;
+    icon.classList.add('fa-spin');
+
+    try {
+        const res  = await fetch('/api/proficiency');
+        const data = await res.json();
+        if (!data.success) throw new Error(data.error || 'Failed to load proficiency');
+
+        proficiencies = data.proficiency;
+
+        // Patch badges in-place without rebuilding the schedule (preserves assignments)
+        machines.forEach(function(machine) {
+            if (!selectedMachineRows.has(machine.row)) return;
+            workers.forEach(function(worker) {
+                const cb = document.getElementById('worker-' + machine.row + '-' + worker.col);
+                if (!cb) return;
+                const label = cb.nextElementSibling;
+                if (!label) return;
+                const badgeSpan = label.querySelector('span.badge');
+                if (!badgeSpan) return;
+
+                const prof        = getProficiency(machine.row, worker.col);
+                const notQualified = !prof;
+                const absence      = getActiveAbsence(worker.name);
+                const blocked      = absence || notQualified;
+
+                badgeSpan.className   = getProficiencyBadgeClass(prof) + ' me-1';
+                badgeSpan.textContent = getProficiencyDisplay(prof);
+
+                if (!absence) {
+                    cb.disabled = notQualified;
+                    cb.title    = notQualified ? 'Not qualified for this machine' : '';
+                }
+                const item = cb.closest('.worker-item');
+                if (item) item.classList.toggle('opacity-50', !!blocked);
+            });
+        });
+
+        icon.classList.remove('fa-spin', 'fa-sync-alt');
+        icon.classList.add('fa-check');
+        btn.classList.replace('btn-outline-secondary', 'btn-success');
+        setTimeout(function() {
+            icon.classList.remove('fa-check');
+            icon.classList.add('fa-sync-alt');
+            btn.classList.replace('btn-success', 'btn-outline-secondary');
+            btn.disabled = false;
+        }, 1500);
+
+    } catch (err) {
+        alert('Error refreshing proficiency: ' + err.message);
+        icon.classList.remove('fa-spin');
+        btn.disabled = false;
+    }
+}
+
 // ── Utilities ─────────────────────────────────────────────────────────────────
 
 function formatDateDisplay(iso) {
