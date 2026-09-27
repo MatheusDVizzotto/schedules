@@ -232,10 +232,7 @@ input[type="time"] { font-size: 0.95rem; }
 }
 .unassigned-panel.collapsed .unassigned-panel-body { display: none; }
 .unassigned-panel.collapsed .unassigned-panel-header { border-radius: 8px 8px 0 0; }
-.unassigned-panel-body {
-    max-height: 220px;
-    overflow-y: auto;
-}
+.unassigned-panel-body {}
 .unassigned-panel-item {
     display: flex;
     align-items: center;
