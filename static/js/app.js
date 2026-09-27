@@ -1017,11 +1017,17 @@ function updateWorkerAvailability() {
             if (!cb.checked) {
                 cb.disabled = effectivelyBlocked;
                 const item = cb.closest('.worker-item');
-                if (item) item.style.opacity = effectivelyBlocked ? '0.45' : '';
+                if (item) {
+                    item.classList.remove('opacity-50');
+                    item.style.opacity = effectivelyBlocked ? '0.45' : '';
+                }
             } else {
                 cb.disabled = notQualified;
                 const item = cb.closest('.worker-item');
-                if (item) item.style.opacity = '';
+                if (item) {
+                    item.classList.remove('opacity-50');
+                    item.style.opacity = '';
+                }
             }
         });
     });
@@ -1163,8 +1169,8 @@ async function refreshProficiency() {
                 }
                 const item = cb.closest('.worker-item');
                 if (item) {
-                    item.classList.toggle('opacity-50', !!blocked);
-                    if (!blocked) item.style.opacity = '';
+                    item.classList.remove('opacity-50');
+                    item.style.opacity = blocked ? '0.45' : '';
                 }
             });
         });
