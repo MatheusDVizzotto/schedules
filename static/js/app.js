@@ -1137,17 +1137,29 @@ async function refreshProficiency() {
                 const badgeSpan = label.querySelector('span.badge');
                 if (!badgeSpan) return;
 
-                const prof        = getProficiency(machine.row, worker.col);
+                const prof         = getProficiency(machine.row, worker.col);
+                const profVal      = String(prof).toLowerCase();
                 const notQualified = !prof;
                 const absence      = getActiveAbsence(worker.name);
-                const blocked      = absence || notQualified;
+
+                let prereqBlocked = false;
+                let prereqTitle   = '';
+                if (profVal === 't' || profVal === 'trainee') {
+                    const hasExpert = machineHasLevel(machine.row, function(v) { return v === 'e' || v === 'expert'; });
+                    if (!hasExpert) { prereqBlocked = true; prereqTitle = 'Requires an Expert to be assigned first'; }
+                } else if (profVal === 'c' || profVal === 'competent') {
+                    const hasProfOrExp = machineHasLevel(machine.row, function(v) { return v === 'e' || v === 'expert' || v === 'p' || v === 'proficient' || v === 'mr'; });
+                    if (!hasProfOrExp) { prereqBlocked = true; prereqTitle = 'Requires a Proficient or Expert to be assigned first'; }
+                }
+
+                const blocked = absence || notQualified || prereqBlocked;
 
                 badgeSpan.className   = getProficiencyBadgeClass(prof) + ' me-1';
                 badgeSpan.textContent = getProficiencyDisplay(prof);
 
                 if (!absence) {
-                    cb.disabled = notQualified;
-                    cb.title    = notQualified ? 'Not qualified for this machine' : '';
+                    cb.disabled = notQualified || prereqBlocked;
+                    cb.title    = prereqTitle || (notQualified ? 'Not qualified for this machine' : '');
                 }
                 const item = cb.closest('.worker-item');
                 if (item) {
