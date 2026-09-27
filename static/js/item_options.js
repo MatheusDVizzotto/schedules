@@ -57,25 +57,57 @@ var QTY_UNIT_OPTIONS = [
     { value: 'Stillage', label: 'Stillage'  },
 ];
 
+// Dynamic options loaded from /api/racks/config at runtime
+var _dynamicExtraTypes = [];       // list of { value, label }
+var _dynamicExtraDims  = {};       // { typeName: [{ value, label }, …] }
+var _dynamicExtraUnits = [];       // list of { value, label }
+
 function buildQtyUnitOptions(selected) {
-    return QTY_UNIT_OPTIONS.map(function (opt) {
+    var all = QTY_UNIT_OPTIONS.concat(_dynamicExtraUnits);
+    return all.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');
 }
 
+function setRacksConfigExtras(config) {
+    config.types.forEach(function (name) {
+        if (!ITEM_TYPE_OPTIONS.some(function (o) { return o.value === name; })) {
+            _dynamicExtraTypes.push({ value: name, label: name });
+        }
+    });
+    config.dimensions.forEach(function (d) {
+        var val = d.width + ' ' + d.thickness;
+        if (!_dynamicExtraDims[d.type]) _dynamicExtraDims[d.type] = [];
+        _dynamicExtraDims[d.type].push({ value: val, label: val });
+    });
+    config.units.forEach(function (u) {
+        if (!QTY_UNIT_OPTIONS.some(function (o) { return o.value === u.name; })) {
+            _dynamicExtraUnits.push({ value: u.name, label: u.name });
+        }
+    });
+}
+
 function buildItemTypeOptions(selected) {
-    return ITEM_TYPE_OPTIONS.map(function (opt) {
+    var all = ITEM_TYPE_OPTIONS.concat(_dynamicExtraTypes);
+    return all.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');
 }
 
 function buildDimensionOptions(type, selected, includeAll) {
     var opts;
-    if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS;
-    else if (type === 'Boards') opts = BOARD_OPTIONS;
-    else if (type === 'Blocks') opts = BLOCK_OPTIONS;
-    else return '<option value="">— select type first —</option>';
+    if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS.slice();
+    else if (type === 'Boards') opts = BOARD_OPTIONS.slice();
+    else if (type === 'Blocks') opts = BLOCK_OPTIONS.slice();
+    else opts = [{ value: '', label: '— select —' }];
     if (!includeAll) opts = opts.filter(function (o) { return o.value !== 'All Dimensions'; });
+    var extras = _dynamicExtraDims[type] || [];
+    extras.forEach(function (e) {
+        if (!opts.some(function (o) { return o.value === e.value; })) opts.push(e);
+    });
+    if (opts.length === 1 && opts[0].value === '' && extras.length === 0) {
+        return '<option value="">— select type first —</option>';
+    }
     return opts.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');

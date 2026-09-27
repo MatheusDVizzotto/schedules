@@ -276,6 +276,12 @@ def stock_page():
     return render_template('stock.html')
 
 
+@app.route('/racks/config')
+@login_required
+def racks_config_page():
+    return render_template('racks_config.html')
+
+
 @app.route('/racks/stock-dashboard')
 @login_required
 def stock_dashboard_page():
@@ -800,6 +806,133 @@ def add_rack_location():
         return jsonify({'success': True, 'locations': locations})
     except ValueError as e:
         return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – racks config (types / dimensions / units)
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks/config', methods=['GET'])
+@login_required
+def get_racks_config():
+    try:
+        handler = get_cached_racks_handler()
+        return jsonify({
+            'success':    True,
+            'types':      handler.get_config_types(),
+            'dimensions': handler.get_config_dimensions(),
+            'units':      handler.get_config_units(),
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/types', methods=['POST'])
+@login_required
+def add_config_type():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        types = handler.add_config_type(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'types': types})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/types/delete', methods=['POST'])
+@login_required
+def delete_config_type():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        types = handler.delete_config_type(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'types': types})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/dimensions', methods=['POST'])
+@login_required
+def add_config_dimension():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'payload required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        dims = handler.add_config_dimension(data.get('type', ''), data.get('thickness', ''), data.get('width', ''))
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'dimensions': dims})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/dimensions/delete', methods=['POST'])
+@login_required
+def delete_config_dimension():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'payload required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        dims = handler.delete_config_dimension(data.get('type', ''), data.get('thickness', ''), data.get('width', ''))
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'dimensions': dims})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/units', methods=['POST'])
+@login_required
+def add_config_unit():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        units = handler.add_config_unit(data.get('name', ''), data.get('length', ''), data.get('width', ''), data.get('height', ''))
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'units': units})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/units/delete', methods=['POST'])
+@login_required
+def delete_config_unit():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        units = handler.delete_config_unit(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'units': units})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

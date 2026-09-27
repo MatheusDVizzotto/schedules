@@ -18,6 +18,13 @@ HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Quan
 STOCK_SHEET   = '_stock_'
 STOCK_HEADERS = ['Size', 'Item Type', 'Dimensions', 'Min On Hand', 'Max On Hand']
 
+CFG_TYPES_SHEET  = '_cfg_types_'
+CFG_DIMS_SHEET   = '_cfg_dims_'
+CFG_UNITS_SHEET  = '_cfg_units_'
+CFG_TYPES_HEADERS = ['Name']
+CFG_DIMS_HEADERS  = ['Type', 'Thickness', 'Width']
+CFG_UNITS_HEADERS = ['Name', 'Length', 'Width', 'Height']
+
 HEADER_FILL  = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
 THIN_SIDE    = Side(style='thin')
 THIN_BORDER  = Border(left=THIN_SIDE, right=THIN_SIDE, top=THIN_SIDE, bottom=THIN_SIDE)
@@ -216,6 +223,139 @@ class RacksHandler:
             ws.column_dimensions['D'].width = 14
             ws.column_dimensions['E'].width = 14
         return self.workbook[STOCK_SHEET]
+
+    # ------------------------------------------------------------------
+    # Config — Types
+    # ------------------------------------------------------------------
+
+    def get_config_types(self) -> list[str]:
+        ws = self._ensure_cfg_types_sheet()
+        return [str(r[0]).strip() for r in ws.iter_rows(min_row=2, values_only=True) if r[0]]
+
+    def add_config_type(self, name: str) -> list[str]:
+        name = name.strip()
+        if not name:
+            raise ValueError('Type name cannot be empty')
+        ws = self._ensure_cfg_types_sheet()
+        if any(str(r[0]).strip().lower() == name.lower() for r in ws.iter_rows(min_row=2, values_only=True) if r[0]):
+            raise ValueError(f"Type '{name}' already exists")
+        row = ws.max_row + 1
+        c = ws.cell(row=row, column=1, value=name)
+        c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_types()
+
+    def delete_config_type(self, name: str) -> list[str]:
+        ws = self._ensure_cfg_types_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if row[0].value and str(row[0].value).strip().lower() == name.strip().lower():
+                ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_types()
+
+    def _ensure_cfg_types_sheet(self):
+        if CFG_TYPES_SHEET not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(CFG_TYPES_SHEET)
+            c = ws.cell(row=1, column=1, value='Name')
+            c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
+            ws.column_dimensions['A'].width = 20
+        return self.workbook[CFG_TYPES_SHEET]
+
+    # ------------------------------------------------------------------
+    # Config — Dimensions
+    # ------------------------------------------------------------------
+
+    def get_config_dimensions(self) -> list[dict]:
+        ws = self._ensure_cfg_dims_sheet()
+        dims = []
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if all(v is None for v in r):
+                continue
+            dims.append({'type': str(r[0] or '').strip(), 'thickness': str(r[1] or '').strip(), 'width': str(r[2] or '').strip()})
+        return dims
+
+    def add_config_dimension(self, type_name: str, thickness: str, width: str) -> list[dict]:
+        type_name = type_name.strip(); thickness = thickness.strip(); width = width.strip()
+        if not type_name or not thickness or not width:
+            raise ValueError('Type, thickness and width are required')
+        ws = self._ensure_cfg_dims_sheet()
+        row = ws.max_row + 1
+        for col, val in enumerate([type_name, thickness, width], start=1):
+            c = ws.cell(row=row, column=col, value=val)
+            c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_dimensions()
+
+    def delete_config_dimension(self, type_name: str, thickness: str, width: str) -> list[dict]:
+        ws = self._ensure_cfg_dims_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if (str(row[0].value or '').strip().lower() == type_name.strip().lower() and
+                    str(row[1].value or '').strip() == thickness.strip() and
+                    str(row[2].value or '').strip() == width.strip()):
+                ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_dimensions()
+
+    def _ensure_cfg_dims_sheet(self):
+        if CFG_DIMS_SHEET not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(CFG_DIMS_SHEET)
+            for col, title in enumerate(CFG_DIMS_HEADERS, start=1):
+                c = ws.cell(row=1, column=col, value=title)
+                c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
+            ws.column_dimensions['A'].width = 16
+            ws.column_dimensions['B'].width = 14
+            ws.column_dimensions['C'].width = 14
+        return self.workbook[CFG_DIMS_SHEET]
+
+    # ------------------------------------------------------------------
+    # Config — Units
+    # ------------------------------------------------------------------
+
+    def get_config_units(self) -> list[dict]:
+        ws = self._ensure_cfg_units_sheet()
+        units = []
+        for r in ws.iter_rows(min_row=2, values_only=True):
+            if all(v is None for v in r):
+                continue
+            units.append({'name': str(r[0] or '').strip(), 'length': str(r[1] or '').strip(), 'width': str(r[2] or '').strip(), 'height': str(r[3] or '').strip()})
+        return units
+
+    def add_config_unit(self, name: str, length: str, width: str, height: str) -> list[dict]:
+        name = name.strip()
+        if not name:
+            raise ValueError('Unit name cannot be empty')
+        ws = self._ensure_cfg_units_sheet()
+        if any(str(r[0] or '').strip().lower() == name.lower() for r in ws.iter_rows(min_row=2, values_only=True)):
+            raise ValueError(f"Unit '{name}' already exists")
+        row = ws.max_row + 1
+        for col, val in enumerate([name, length.strip(), width.strip(), height.strip()], start=1):
+            c = ws.cell(row=row, column=col, value=val or None)
+            c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_units()
+
+    def delete_config_unit(self, name: str) -> list[dict]:
+        ws = self._ensure_cfg_units_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if str(row[0].value or '').strip().lower() == name.strip().lower():
+                ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_units()
+
+    def _ensure_cfg_units_sheet(self):
+        if CFG_UNITS_SHEET not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(CFG_UNITS_SHEET)
+            for col, title in enumerate(CFG_UNITS_HEADERS, start=1):
+                c = ws.cell(row=1, column=col, value=title)
+                c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
+            ws.column_dimensions['A'].width = 18
+            ws.column_dimensions['B'].width = 12
+            ws.column_dimensions['C'].width = 12
+            ws.column_dimensions['D'].width = 12
+        return self.workbook[CFG_UNITS_SHEET]
 
     # ------------------------------------------------------------------
 

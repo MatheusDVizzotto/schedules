@@ -19,7 +19,10 @@ var activeLineFilter = null;     // 3rd char of bay_code, null = show all lines
 // ── Startup ───────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', function () {
-    loadRacks();
+    fetch('/api/racks/config').then(function (r) { return r.json(); }).then(function (data) {
+        if (data.success) setRacksConfigExtras(data);
+    }).catch(function () {}).finally(function () { loadRacks(); });
+
 
     document.getElementById('addBayBtn').addEventListener('click', function () {
         appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', qty_unit: '', item_type: '', item_subtype: '' });
