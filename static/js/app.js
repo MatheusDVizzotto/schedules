@@ -1150,7 +1150,10 @@ async function refreshProficiency() {
                     cb.title    = notQualified ? 'Not qualified for this machine' : '';
                 }
                 const item = cb.closest('.worker-item');
-                if (item) item.classList.toggle('opacity-50', !!blocked);
+                if (item) {
+                    item.classList.toggle('opacity-50', !!blocked);
+                    if (!blocked) item.style.opacity = '';
+                }
             });
         });
 
