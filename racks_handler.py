@@ -276,6 +276,18 @@ class RacksHandler:
         self.gdrive.upload_file(self.file_id, self._serialise())
         return self.get_config_types()
 
+    def update_config_type(self, old_name: str, new_name: str) -> list[str]:
+        new_name = new_name.strip()
+        if not new_name:
+            raise ValueError('Type name cannot be empty')
+        ws = self._ensure_cfg_types_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if row[0].value and str(row[0].value).strip().lower() == old_name.strip().lower():
+                row[0].value = new_name
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_types()
+
     def needs_config_seed(self) -> bool:
         return any(s not in self.workbook.sheetnames for s in [CFG_TYPES_SHEET, CFG_DIMS_SHEET, CFG_UNITS_SHEET])
 
@@ -314,8 +326,8 @@ class RacksHandler:
 
     def add_config_dimension(self, type_name: str, thickness: str, width: str) -> list[dict]:
         type_name = type_name.strip(); thickness = thickness.strip(); width = width.strip()
-        if not type_name or not thickness or not width:
-            raise ValueError('Type, thickness and width are required')
+        if not type_name or not thickness:
+            raise ValueError('Type and thickness are required')
         ws = self._ensure_cfg_dims_sheet()
         row = ws.max_row + 1
         for col, val in enumerate([type_name, thickness, width], start=1):
@@ -331,6 +343,23 @@ class RacksHandler:
                     str(row[1].value or '').strip() == thickness.strip() and
                     str(row[2].value or '').strip() == width.strip()):
                 ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_dimensions()
+
+    def update_config_dimension(self, old_type: str, old_thickness: str, old_width: str,
+                                 new_type: str, new_thickness: str, new_width: str) -> list[dict]:
+        new_type = new_type.strip(); new_thickness = new_thickness.strip(); new_width = new_width.strip()
+        if not new_type or not new_thickness:
+            raise ValueError('Type and thickness are required')
+        ws = self._ensure_cfg_dims_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if (str(row[0].value or '').strip().lower() == old_type.strip().lower() and
+                    str(row[1].value or '').strip() == old_thickness.strip() and
+                    str(row[2].value or '').strip() == old_width.strip()):
+                row[0].value = new_type
+                row[1].value = new_thickness
+                row[2].value = new_width or None
                 break
         self.gdrive.upload_file(self.file_id, self._serialise())
         return self.get_config_dimensions()
@@ -382,6 +411,21 @@ class RacksHandler:
         for row in ws.iter_rows(min_row=2):
             if str(row[0].value or '').strip().lower() == name.strip().lower():
                 ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self.get_config_units()
+
+    def update_config_unit(self, old_name: str, new_name: str, length: str, width: str, height: str) -> list[dict]:
+        new_name = new_name.strip()
+        if not new_name:
+            raise ValueError('Unit name cannot be empty')
+        ws = self._ensure_cfg_units_sheet()
+        for row in ws.iter_rows(min_row=2):
+            if str(row[0].value or '').strip().lower() == old_name.strip().lower():
+                row[0].value = new_name
+                row[1].value = length.strip() or None
+                row[2].value = width.strip() or None
+                row[3].value = height.strip() or None
                 break
         self.gdrive.upload_file(self.file_id, self._serialise())
         return self.get_config_units()

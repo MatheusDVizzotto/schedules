@@ -855,6 +855,25 @@ def add_config_type():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/racks/config/types/update', methods=['POST'])
+@login_required
+def update_config_type():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        types = handler.update_config_type(data['old_name'], data['new_name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'types': types})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/racks/config/types/delete', methods=['POST'])
 @login_required
 def delete_config_type():
@@ -891,6 +910,28 @@ def add_config_dimension():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/racks/config/dimensions/update', methods=['POST'])
+@login_required
+def update_config_dimension():
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'payload required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        dims = handler.update_config_dimension(
+            data.get('old_type', ''), data.get('old_thickness', ''), data.get('old_width', ''),
+            data.get('new_type', ''), data.get('new_thickness', ''), data.get('new_width', ''),
+        )
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'dimensions': dims})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/racks/config/dimensions/delete', methods=['POST'])
 @login_required
 def delete_config_dimension():
@@ -918,6 +959,28 @@ def add_config_unit():
         handler = get_rack_handler()
         handler.load()
         units = handler.add_config_unit(data.get('name', ''), data.get('length', ''), data.get('width', ''), data.get('height', ''))
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'units': units})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/units/update', methods=['POST'])
+@login_required
+def update_config_unit():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        units = handler.update_config_unit(
+            data['old_name'], data['new_name'],
+            data.get('length', ''), data.get('width', ''), data.get('height', ''),
+        )
         handler.close()
         invalidate_racks_cache()
         return jsonify({'success': True, 'units': units})
