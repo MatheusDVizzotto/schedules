@@ -1,5 +1,6 @@
 // static/js/item_options.js — shared item type / dimension option data
 
+// Hardcoded fallbacks — used only before /api/racks/config is loaded
 var ITEM_TYPE_OPTIONS = [
     { value: '',        label: '— select —' },
     { value: 'Bearers', label: 'Bearers'    },
@@ -57,57 +58,57 @@ var QTY_UNIT_OPTIONS = [
     { value: 'Stillage', label: 'Stillage'  },
 ];
 
-// Dynamic options loaded from /api/racks/config at runtime
-var _dynamicExtraTypes = [];       // list of { value, label }
-var _dynamicExtraDims  = {};       // { typeName: [{ value, label }, …] }
-var _dynamicExtraUnits = [];       // list of { value, label }
-
-function buildQtyUnitOptions(selected) {
-    var all = QTY_UNIT_OPTIONS.concat(_dynamicExtraUnits);
-    return all.map(function (opt) {
-        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
-    }).join('');
-}
+// Set to non-null once /api/racks/config has been loaded — build functions
+// then use only these instead of the hardcoded arrays above.
+var _cfgTypes      = null;   // [{ value, label }, …]
+var _cfgDimsByType = null;   // { typeName: [{ value, label }, …] }
+var _cfgUnits      = null;   // [{ value, label }, …]
 
 function setRacksConfigExtras(config) {
+    _cfgTypes = [{ value: '', label: '— select —' }];
     config.types.forEach(function (name) {
-        if (!ITEM_TYPE_OPTIONS.some(function (o) { return o.value === name; })) {
-            _dynamicExtraTypes.push({ value: name, label: name });
-        }
+        _cfgTypes.push({ value: name, label: name });
     });
+
+    _cfgDimsByType = {};
     config.dimensions.forEach(function (d) {
-        var val = d.width + ' ' + d.thickness;
-        if (!_dynamicExtraDims[d.type]) _dynamicExtraDims[d.type] = [];
-        _dynamicExtraDims[d.type].push({ value: val, label: val });
+        if (!_cfgDimsByType[d.type]) _cfgDimsByType[d.type] = [{ value: '', label: '— select —' }];
+        var val = d.width ? (d.width + ' ' + d.thickness) : d.thickness;
+        _cfgDimsByType[d.type].push({ value: val, label: val });
     });
+
+    _cfgUnits = [{ value: '', label: '— unit —' }];
     config.units.forEach(function (u) {
-        if (!QTY_UNIT_OPTIONS.some(function (o) { return o.value === u.name; })) {
-            _dynamicExtraUnits.push({ value: u.name, label: u.name });
-        }
+        _cfgUnits.push({ value: u.name, label: u.name });
     });
 }
 
 function buildItemTypeOptions(selected) {
-    var all = ITEM_TYPE_OPTIONS.concat(_dynamicExtraTypes);
-    return all.map(function (opt) {
+    var opts = _cfgTypes || ITEM_TYPE_OPTIONS;
+    return opts.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');
 }
 
 function buildDimensionOptions(type, selected, includeAll) {
     var opts;
-    if (type === 'Bearers') opts = BEARER_SUBTYPE_OPTIONS.slice();
-    else if (type === 'Boards') opts = BOARD_OPTIONS.slice();
-    else if (type === 'Blocks') opts = BLOCK_OPTIONS.slice();
-    else opts = [{ value: '', label: '— select —' }];
-    if (!includeAll) opts = opts.filter(function (o) { return o.value !== 'All Dimensions'; });
-    var extras = _dynamicExtraDims[type] || [];
-    extras.forEach(function (e) {
-        if (!opts.some(function (o) { return o.value === e.value; })) opts.push(e);
-    });
-    if (opts.length === 1 && opts[0].value === '' && extras.length === 0) {
-        return '<option value="">— select type first —</option>';
+    if (_cfgDimsByType) {
+        opts = (_cfgDimsByType[type] || []).slice();
+        if (!opts.length) opts = [{ value: '', label: '— select type first —' }];
+    } else {
+        if (type === 'Bearers')      opts = BEARER_SUBTYPE_OPTIONS.slice();
+        else if (type === 'Boards')  opts = BOARD_OPTIONS.slice();
+        else if (type === 'Blocks')  opts = BLOCK_OPTIONS.slice();
+        else return '<option value="">— select type first —</option>';
     }
+    if (!includeAll) opts = opts.filter(function (o) { return o.value !== 'All Dimensions'; });
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildQtyUnitOptions(selected) {
+    var opts = _cfgUnits || QTY_UNIT_OPTIONS;
     return opts.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');

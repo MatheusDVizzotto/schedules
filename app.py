@@ -819,6 +819,13 @@ def add_rack_location():
 def get_racks_config():
     try:
         handler = get_cached_racks_handler()
+        if handler.needs_config_seed():
+            fresh = get_rack_handler()
+            fresh.load()
+            fresh.seed_config_if_needed()
+            fresh.close()
+            invalidate_racks_cache()
+            handler = get_cached_racks_handler()
         return jsonify({
             'success':    True,
             'types':      handler.get_config_types(),

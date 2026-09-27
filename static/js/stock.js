@@ -3,7 +3,9 @@
 // buildDimensionOptions(), escHtml()
 
 document.addEventListener('DOMContentLoaded', function () {
-    loadStock();
+    fetch('/api/racks/config').then(function (r) { return r.json(); }).then(function (data) {
+        if (data.success) setRacksConfigExtras(data);
+    }).catch(function () {}).finally(function () { loadStock(); });
 
     document.getElementById('addItemBtn').addEventListener('click', function () {
         appendRow({ size: '', item_type: '', dimensions: '', qty_on_hand: null, min_on_hand: '', max_on_hand: '' });

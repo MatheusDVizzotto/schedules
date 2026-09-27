@@ -25,6 +25,28 @@ CFG_TYPES_HEADERS = ['Name']
 CFG_DIMS_HEADERS  = ['Type', 'Thickness', 'Width']
 CFG_UNITS_HEADERS = ['Name', 'Length', 'Width', 'Height']
 
+# Default seed data — mirrors item_options.js hardcoded values
+# Dims: (type, thickness, width)  — value displayed = "{width} {thickness}" if width else thickness
+DEFAULT_TYPES = ['Bearers', 'Boards', 'Blocks']
+DEFAULT_DIMS  = [
+    # Bearers
+    ('Bearers', 'All Dimensions', ''), ('Bearers', 'Low Profile', ''), ('Bearers', 'Mixed', ''),
+    ('Bearers', 'Noched', ''),         ('Bearers', 'Square', ''),      ('Bearers', 'Standard', ''),
+    # Boards — numeric
+    ('Boards', 'All Dimensions', ''),
+    ('Boards', '12-15', '65-85'),  ('Boards', '16-19', '65-85'),  ('Boards', '20-23', '65-85'),  ('Boards', '25', '65-85'),
+    ('Boards', '12-15', '85-105'), ('Boards', '16-19', '85-105'), ('Boards', '20-23', '85-105'), ('Boards', '25', '85-105'),
+    ('Boards', '12-15', '105-125'),('Boards', '16-19', '105-125'),('Boards', '20-23', '105-125'),('Boards', '25', '105-125'),
+    ('Boards', '12-15', '125-145'),('Boards', '16-19', '125-145'),('Boards', '20-23', '125-145'),('Boards', '25', '125-145'),
+    # Boards — named
+    ('Boards', 'Narrow Mixed', ''), ('Boards', 'Standard Mixed', ''), ('Boards', 'Heavy Mixed', ''), ('Boards', 'Mixed', ''),
+    # Blocks
+    ('Blocks', 'All Dimensions', ''), ('Blocks', '100x75', ''), ('Blocks', '100x100', ''),
+]
+DEFAULT_UNITS = [
+    ('box', '', '', ''), ('pc', '', '', ''), ('pallet', '', '', ''), ('Stillage', '', '', ''),
+]
+
 HEADER_FILL  = PatternFill(start_color='CCE5FF', end_color='CCE5FF', fill_type='solid')
 THIN_SIDE    = Side(style='thin')
 THIN_BORDER  = Border(left=THIN_SIDE, right=THIN_SIDE, top=THIN_SIDE, bottom=THIN_SIDE)
@@ -254,12 +276,27 @@ class RacksHandler:
         self.gdrive.upload_file(self.file_id, self._serialise())
         return self.get_config_types()
 
+    def needs_config_seed(self) -> bool:
+        return any(s not in self.workbook.sheetnames for s in [CFG_TYPES_SHEET, CFG_DIMS_SHEET, CFG_UNITS_SHEET])
+
+    def seed_config_if_needed(self) -> bool:
+        if not self.needs_config_seed():
+            return False
+        self._ensure_cfg_types_sheet()
+        self._ensure_cfg_dims_sheet()
+        self._ensure_cfg_units_sheet()
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return True
+
     def _ensure_cfg_types_sheet(self):
         if CFG_TYPES_SHEET not in self.workbook.sheetnames:
             ws = self.workbook.create_sheet(CFG_TYPES_SHEET)
             c = ws.cell(row=1, column=1, value='Name')
             c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
             ws.column_dimensions['A'].width = 20
+            for i, name in enumerate(DEFAULT_TYPES, start=2):
+                c = ws.cell(row=i, column=1, value=name)
+                c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
         return self.workbook[CFG_TYPES_SHEET]
 
     # ------------------------------------------------------------------
@@ -305,8 +342,12 @@ class RacksHandler:
                 c = ws.cell(row=1, column=col, value=title)
                 c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
             ws.column_dimensions['A'].width = 16
-            ws.column_dimensions['B'].width = 14
+            ws.column_dimensions['B'].width = 16
             ws.column_dimensions['C'].width = 14
+            for i, (type_name, thickness, width) in enumerate(DEFAULT_DIMS, start=2):
+                for col, val in enumerate([type_name, thickness, width or None], start=1):
+                    c = ws.cell(row=i, column=col, value=val)
+                    c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
         return self.workbook[CFG_DIMS_SHEET]
 
     # ------------------------------------------------------------------
@@ -355,6 +396,10 @@ class RacksHandler:
             ws.column_dimensions['B'].width = 12
             ws.column_dimensions['C'].width = 12
             ws.column_dimensions['D'].width = 12
+            for i, (name, length, width, height) in enumerate(DEFAULT_UNITS, start=2):
+                for col, val in enumerate([name, length or None, width or None, height or None], start=1):
+                    c = ws.cell(row=i, column=col, value=val)
+                    c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
         return self.workbook[CFG_UNITS_SHEET]
 
     # ------------------------------------------------------------------
