@@ -122,11 +122,16 @@ def get_cached_racks_handler():
     with _racks_lock:
         now = _time.monotonic()
         if _cached_racks_handler is None or (now - _cached_racks_at) > RACKS_CACHE_TTL:
-            from racks_handler import RacksHandler
-            h = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
-            h.load()
-            _cached_racks_handler = h
-            _cached_racks_at = now
+            import traceback as _tb
+            try:
+                from racks_handler import RacksHandler
+                h = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
+                h.load()
+                _cached_racks_handler = h
+                _cached_racks_at = now
+            except Exception:
+                print(f"[racks cache] load failed:\n{_tb.format_exc()}", flush=True)
+                raise
         return _cached_racks_handler
 
 
@@ -815,24 +820,12 @@ def add_rack_location():
 def get_racks_config():
     try:
         handler = get_cached_racks_handler()
-        if handler.needs_config_seed():
-            fresh = get_rack_handler()
-            fresh.load()
-            fresh.seed_config_if_needed()
-            fresh.close()
-            invalidate_racks_cache()
-            handler = get_cached_racks_handler()
-        return jsonify({
-            'success':        True,
-            'types':          handler.get_config_types(),
-            'dimensions':     handler.get_config_dimensions(),
-            'units':          handler.get_config_units(),
-            'statuses':       handler.get_config_statuses(),
-            'next_locations': handler.get_config_next_locations(),
-            'notes':          handler.get_config_notes(),
-            'customers':      handler.get_config_customers(),
-        })
+        handler.seed_config_if_needed()   # no-op if already seeded; batched if not
+        config = handler.get_all_config() # single batchGet for all 7 config sheets
+        return jsonify({'success': True, **config})
     except Exception as e:
+        import traceback
+        print(f"Error in get_racks_config:\n{traceback.format_exc()}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

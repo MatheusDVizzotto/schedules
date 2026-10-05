@@ -325,14 +325,77 @@ class RacksHandler:
     def seed_config_if_needed(self) -> bool:
         if not self.needs_config_seed():
             return False
-        self._ensure_sheet(CFG_TYPES_SHEET,     CFG_TYPES_HEADERS, DEFAULT_TYPES)
-        self._ensure_sheet(CFG_DIMS_SHEET,       CFG_DIMS_HEADERS,  DEFAULT_DIMS)
-        self._ensure_sheet(CFG_UNITS_SHEET,      CFG_UNITS_HEADERS, DEFAULT_UNITS)
-        self._ensure_sheet(CFG_STATUSES_SHEET,   ['Name'], [])
-        self._ensure_sheet(CFG_NEXT_LOCS_SHEET,  ['Name'], [])
-        self._ensure_sheet(CFG_NOTES_SHEET,      ['Name'], [])
-        self._ensure_sheet(CFG_CUSTOMERS_SHEET,  ['Name'], [])
+        all_cfg = [
+            (CFG_TYPES_SHEET,     CFG_TYPES_HEADERS, DEFAULT_TYPES),
+            (CFG_DIMS_SHEET,      CFG_DIMS_HEADERS,  DEFAULT_DIMS),
+            (CFG_UNITS_SHEET,     CFG_UNITS_HEADERS, DEFAULT_UNITS),
+            (CFG_STATUSES_SHEET,  ['Name'], None),
+            (CFG_NEXT_LOCS_SHEET, ['Name'], None),
+            (CFG_NOTES_SHEET,     ['Name'], None),
+            (CFG_CUSTOMERS_SHEET, ['Name'], None),
+        ]
+        missing = [name for name, _, _ in all_cfg if name not in self._sheets]
+        if missing:
+            self._ss().batchUpdate(
+                spreadsheetId=self.file_id,
+                body={'requests': [
+                    {'addSheet': {'properties': {'title': t}}} for t in missing
+                ]},
+            ).execute()
+            self._refresh_sheet_cache()
+        for name, headers, defaults in all_cfg:
+            if name in missing:
+                self._set_values(name, 'A1', [headers])
+                if defaults:
+                    rows = [list(d) if not isinstance(d, str) else [d] for d in defaults]
+                    self._set_values(name, 'A2', rows)
         return True
+
+    def get_all_config(self) -> dict:
+        """Read all 7 config sheets in one batchGet API call."""
+        cfg_ranges = [
+            (CFG_TYPES_SHEET,     'A2:A'),
+            (CFG_DIMS_SHEET,      'A2:C'),
+            (CFG_UNITS_SHEET,     'A2:D'),
+            (CFG_STATUSES_SHEET,  'A2:A'),
+            (CFG_NEXT_LOCS_SHEET, 'A2:A'),
+            (CFG_NOTES_SHEET,     'A2:A'),
+            (CFG_CUSTOMERS_SHEET, 'A2:A'),
+        ]
+        ranges = [f"'{s}'!{r}" for s, r in cfg_ranges]
+        result = self._ss().values().batchGet(
+            spreadsheetId=self.file_id,
+            ranges=ranges,
+        ).execute()
+        vrs = result.get('valueRanges', [])
+
+        def rows(i):
+            return vrs[i].get('values', []) if i < len(vrs) else []
+
+        def g(r, i): return str(r[i]).strip() if len(r) > i else ''
+
+        types = [r[0].strip() for r in rows(0) if r and r[0]]
+
+        dims = []
+        for row in rows(1):
+            if any(row):
+                dims.append({'type': g(row, 0), 'thickness': g(row, 1), 'width': g(row, 2)})
+
+        units = []
+        for row in rows(2):
+            if any(row):
+                units.append({'name': g(row, 0), 'length': g(row, 1), 'width': g(row, 2), 'height': g(row, 3)})
+
+        statuses       = [r[0].strip() for r in rows(3) if r and r[0]]
+        next_locations = [r[0].strip() for r in rows(4) if r and r[0]]
+        notes          = [r[0].strip() for r in rows(5) if r and r[0]]
+        customers      = [r[0].strip() for r in rows(6) if r and r[0]]
+
+        return {
+            'types': types, 'dimensions': dims, 'units': units,
+            'statuses': statuses, 'next_locations': next_locations,
+            'notes': notes, 'customers': customers,
+        }
 
     # ------------------------------------------------------------------
     # Config — Types
