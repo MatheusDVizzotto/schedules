@@ -60,9 +60,13 @@ var QTY_UNIT_OPTIONS = [
 
 // Set to non-null once /api/racks/config has been loaded — build functions
 // then use only these instead of the hardcoded arrays above.
-var _cfgTypes      = null;   // [{ value, label }, …]
-var _cfgDimsByType = null;   // { typeName: [{ value, label }, …] }
-var _cfgUnits      = null;   // [{ value, label }, …]
+var _cfgTypes         = null;   // [{ value, label }, …]
+var _cfgDimsByType    = null;   // { typeName: [{ value, label }, …] }
+var _cfgUnits         = null;   // [{ value, label }, …]
+var _cfgStatuses      = null;   // [{ value, label }, …]
+var _cfgNextLocations = null;   // [{ value, label }, …]
+var _cfgNotes         = null;   // [{ value, label }, …]
+var _cfgCustomers     = null;   // [{ value, label }, …]
 
 function setRacksConfigExtras(config) {
     _cfgTypes = [{ value: '', label: '— select —' }];
@@ -80,6 +84,26 @@ function setRacksConfigExtras(config) {
     _cfgUnits = [{ value: '', label: '— unit —' }];
     config.units.forEach(function (u) {
         _cfgUnits.push({ value: u.name, label: u.name });
+    });
+
+    _cfgStatuses = [{ value: '', label: '— status —' }];
+    (config.statuses || []).forEach(function (name) {
+        _cfgStatuses.push({ value: name, label: name });
+    });
+
+    _cfgNextLocations = [{ value: '', label: '— next loc —' }];
+    (config.next_locations || []).forEach(function (name) {
+        _cfgNextLocations.push({ value: name, label: name });
+    });
+
+    _cfgNotes = [{ value: '', label: '— note —' }];
+    (config.notes || []).forEach(function (name) {
+        _cfgNotes.push({ value: name, label: name });
+    });
+
+    _cfgCustomers = [{ value: '', label: '— customer —' }];
+    (config.customers || []).forEach(function (name) {
+        _cfgCustomers.push({ value: name, label: name });
     });
 }
 
@@ -109,6 +133,34 @@ function buildDimensionOptions(type, selected, includeAll) {
 
 function buildQtyUnitOptions(selected) {
     var opts = _cfgUnits || QTY_UNIT_OPTIONS;
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildStatusOptions(selected) {
+    var opts = _cfgStatuses || [{ value: '', label: '— status —' }];
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildNextLocOptions(selected) {
+    var opts = _cfgNextLocations || [{ value: '', label: '— next loc —' }];
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildNotesOptions(selected) {
+    var opts = _cfgNotes || [{ value: '', label: '— note —' }];
+    return opts.map(function (opt) {
+        return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
+    }).join('');
+}
+
+function buildCustomerOptions(selected) {
+    var opts = _cfgCustomers || [{ value: '', label: '— customer —' }];
     return opts.map(function (opt) {
         return '<option value="' + escHtml(opt.value) + '"' + (opt.value === selected ? ' selected' : '') + '>' + escHtml(opt.label) + '</option>';
     }).join('');

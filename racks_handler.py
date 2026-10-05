@@ -14,7 +14,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from google_drive_handler import GoogleDriveHandler
 
 FILENAME      = 'racks_management'
-HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Quantity Unit', 'Item Type', 'Dimensions']
+HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Quantity Unit', 'Item Type', 'Dimensions', 'Status', 'Next Location', 'Notes', 'Customer']
 STOCK_SHEET   = '_stock_'
 STOCK_HEADERS = ['Size', 'Item Type', 'Dimensions', 'Min On Hand', 'Max On Hand']
 
@@ -133,6 +133,10 @@ class RacksHandler:
                     'qty_unit':        str(row[4] or '').strip() if len(row) > 4 else '',
                     'item_type':       str(row[5] or '').strip() if len(row) > 5 else '',
                     'item_subtype':    str(row[6] or '').strip() if len(row) > 6 else '',
+                    'status':          str(row[7] or '').strip() if len(row) > 7 else '',
+                    'next_location':   str(row[8] or '').strip() if len(row) > 8 else '',
+                    'notes':           str(row[9] or '').strip() if len(row) > 9 else '',
+                    'customer':        str(row[10] or '').strip() if len(row) > 10 else '',
                 })
         return racks
 
@@ -165,6 +169,10 @@ class RacksHandler:
                     rack.get('qty_unit', ''),
                     rack.get('item_type', ''),
                     rack.get('item_subtype', ''),
+                    rack.get('status', ''),
+                    rack.get('next_location', ''),
+                    rack.get('notes', ''),
+                    rack.get('customer', ''),
                 ]
                 for col_idx, val in enumerate(values, start=1):
                     cell           = ws.cell(row=row_idx, column=col_idx, value=val or None)
@@ -590,6 +598,10 @@ class RacksHandler:
         ws.column_dimensions['E'].width = 16
         ws.column_dimensions['F'].width = 14
         ws.column_dimensions['G'].width = 18
+        ws.column_dimensions['H'].width = 16
+        ws.column_dimensions['I'].width = 16
+        ws.column_dimensions['J'].width = 22
+        ws.column_dimensions['K'].width = 18
         return ws
 
     def _new_workbook(self) -> openpyxl.Workbook:

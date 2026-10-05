@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
     document.getElementById('addBayBtn').addEventListener('click', function () {
-        appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', qty_unit: '', item_type: '', item_subtype: '' });
+        appendRow({ location: activeLocationFilter || '', bay_code: '', size_preferable: '', actual_size: '', quantity: '', qty_unit: '', item_type: '', item_subtype: '', status: '', next_location: '', notes: '', customer: '' });
     });
 
     document.getElementById('saveBtn').addEventListener('click', saveRacks);
@@ -314,6 +314,10 @@ function appendRow(rack) {
         '</td>' +
         '<td><select class="form-select form-select-sm" data-field="item_type">' + buildItemTypeOptions(rack.item_type) + '</select></td>' +
         '<td><select class="form-select form-select-sm" data-field="item_subtype"' + (hasType ? '' : ' disabled') + '>' + subtypeHtml + '</select></td>' +
+        '<td><select class="form-select form-select-sm" data-field="status">' + buildStatusOptions(rack.status || '') + '</select></td>' +
+        '<td><select class="form-select form-select-sm" data-field="next_location">' + buildNextLocOptions(rack.next_location || '') + '</select></td>' +
+        '<td><select class="form-select form-select-sm" data-field="notes">' + buildNotesOptions(rack.notes || '') + '</select></td>' +
+        '<td><select class="form-select form-select-sm" data-field="customer">' + buildCustomerOptions(rack.customer || '') + '</select></td>' +
         '<td class="text-center">' +
           '<div class="d-flex gap-1 justify-content-center">' +
             '<button class="btn btn-sm btn-outline-secondary btn-clear-bay" title="Clear bay"><i class="fas fa-broom"></i></button>' +
@@ -352,6 +356,10 @@ function appendRow(rack) {
         itemTypeSel.value = '';
         itemSubtypeSel.innerHTML = '<option value="">— select type first —</option>';
         itemSubtypeSel.disabled = true;
+        tr.querySelector('select[data-field="status"]').value = '';
+        tr.querySelector('select[data-field="next_location"]').value = '';
+        tr.querySelector('select[data-field="notes"]').value = '';
+        tr.querySelector('select[data-field="customer"]').value = '';
     });
 
     tr.querySelector('.btn-delete-row').addEventListener('click', function () {
@@ -392,6 +400,10 @@ function collectRows() {
             qty_unit:        tr.querySelector('select[data-field="qty_unit"]').value,
             item_type:       tr.querySelector('select[data-field="item_type"]').value,
             item_subtype:    tr.querySelector('select[data-field="item_subtype"]').value,
+            status:          tr.querySelector('select[data-field="status"]').value,
+            next_location:   tr.querySelector('select[data-field="next_location"]').value,
+            notes:           tr.querySelector('select[data-field="notes"]').value,
+            customer:        tr.querySelector('select[data-field="customer"]').value,
         });
     });
     return racks;
@@ -399,7 +411,7 @@ function collectRows() {
 
 function setEmpty() {
     document.getElementById('racksBody').innerHTML =
-        '<tr><td colspan="8" class="text-center py-4 text-muted empty-state">' +
+        '<tr><td colspan="12" class="text-center py-4 text-muted empty-state">' +
           '<i class="fas fa-pallet me-2 opacity-50"></i>No bays yet. Click <strong>Add Bay</strong> to get started.' +
         '</td></tr>';
 }
