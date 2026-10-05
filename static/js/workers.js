@@ -10,7 +10,7 @@ const LEVELS = [
     { value: 'P', label: 'Proficient' },
     { value: 'C', label: 'Competent'  },
     { value: 'T', label: 'Trainee'    },
-    { value: '',  label: 'None'       },
+    { value: '',  label: 'SOP'        },
 ];
 
 const PROF_COLORS = {
@@ -18,7 +18,7 @@ const PROF_COLORS = {
     'P': '#C6EFCE',  // pastel green  — matches Excel
     'C': '#FFFF00',  // yellow
     'T': '#FCE4D6',  // pastel orange — matches Excel
-    '':  '',         // white / no fill
+    '':  '#D9D9D9',  // light grey — SOP (supervised only)
 };
 
 // Map any raw spreadsheet value → our canonical value
@@ -30,6 +30,7 @@ function normaliseProf(raw) {
     if (v === 'c' || v === 'competent' || v === '2')                                                     return 'C';
     if (v === 't' || v === 'trainee'   || v === '3')                                                     return 'T';
     if (v === 'e' || v === 'expert' || v === '4')                                                        return 'E';
+    if (v === 's' || v === 'sop')                                                                       return '';
     // Unknown value — return as-is so we can see it in the dropdown
     return String(raw).trim();
 }

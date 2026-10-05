@@ -203,7 +203,7 @@ function renderWorkerCard(worker, assignments, colIdx) {
             ? formatTime(a.time_start) + ' – ' + formatTime(a.time_finish)
             : '';
         var prof      = getWorkerMachineProficiency(worker, a.machine);
-        var profBadge = prof
+        var profBadge = (prof !== undefined)
             ? '<span class="' + profBadgeClass(prof) + ' ms-1" style="font-size:0.65rem;">' + profDisplay(prof) + '</span>'
             : '';
         assignmentsHtml +=
@@ -253,7 +253,7 @@ function profBadgeClass(p) {
     if (v === 'e' || v === 'expert')                   return 'badge bg-primary';
     if (v === 'c' || v === 'competent')                return 'badge badge-competent';
     if (v === 't' || v === 'trainee')                  return 'badge bg-warning text-dark';
-    return '';
+    return 'badge bg-secondary';
 }
 
 function profDisplay(p) {
@@ -262,7 +262,8 @@ function profDisplay(p) {
     if (v === 'e' || v === 'expert')                   return 'Expert';
     if (v === 'c' || v === 'competent')                return 'Competent';
     if (v === 't' || v === 'trainee')                  return 'Trainee';
-    return '';
+    if (v === '')                                      return 'SOP';
+    return p;
 }
 
 // ── Utilities ─────────────────────────────────────────────────────────────────

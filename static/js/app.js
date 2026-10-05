@@ -685,8 +685,8 @@ function renderWorkersList(machine) {
                          ' id="worker-' + machine.row + '-' + worker.col + '"' +
                          ' data-machine-row="' + machine.row + '"' +
                          ' data-worker-col="' + worker.col + '"' +
-                         (absence      ? ' disabled title="Worker is absent"'          : '') +
-                         (notQualified ? ' disabled title="Not qualified for this machine"' : '') + '>' +
+                         (absence      ? ' disabled title="Worker is absent"'                              : '') +
+                         (notQualified ? ' disabled title="SOP: Requires an Expert to be assigned first"' : '') + '>' +
                   '<label class="form-check-label" for="worker-' + machine.row + '-' + worker.col + '">' +
                     '<span class="' + badgeCls + ' me-1">' + display + '</span>' +
                     '<strong>' + escapeHtml(worker.name) + '</strong>' +
@@ -999,11 +999,11 @@ function updateWorkerAvailability() {
             const machRow      = parseInt(cb.dataset.machineRow);
             const prof         = getProficiency(machRow, worker.col);
             const profVal      = String(prof).toLowerCase();
-            const notQualified = !prof;
+            const notQualified = false;
 
             let prereqBlocked = false;
             let prereqTitle   = '';
-            if (profVal === 't' || profVal === 'trainee') {
+            if (profVal === 't' || profVal === 'trainee' || profVal === '') {
                 const hasExpert = machineHasLevel(machRow, function(v) { return v === 'e' || v === 'expert'; });
                 if (!hasExpert) { prereqBlocked = true; prereqTitle = 'Requires an Expert to be assigned first'; }
             } else if (profVal === 'c' || profVal === 'competent') {
@@ -1011,8 +1011,12 @@ function updateWorkerAvailability() {
                 if (!hasProfOrExp) { prereqBlocked = true; prereqTitle = 'Requires a Proficient or Expert to be assigned first'; }
             }
 
-            const effectivelyBlocked = blocked || notQualified || prereqBlocked;
-            if (prereqTitle) cb.title = prereqTitle;
+            const effectivelyBlocked = blocked || prereqBlocked;
+            if (prereqTitle) {
+                cb.title = prereqTitle;
+            } else if (profVal === '') {
+                cb.title = '';
+            }
 
             if (!cb.checked) {
                 cb.disabled = effectivelyBlocked;
@@ -1106,11 +1110,11 @@ function getProficiencyBadgeClass(p) {
     if (v === 'competent'  || v === 'c')                                      return 'badge badge-competent';
     if (v === 'trainee'    || v === 't')                                      return 'badge bg-warning text-dark';
     if (p) return 'badge bg-secondary';
-    return 'badge bg-light text-dark border';
+    return 'badge bg-secondary';
 }
 
 function getProficiencyDisplay(p) {
-    if (!p) return 'Not Qualified';
+    if (!p) return 'SOP';
     const v = String(p).toLowerCase();
     if (v === 'proficient' || v === 'p')                                      return 'Proficient';
     if (v === 'expert'     || v === 'e')                                      return 'Expert';
@@ -1145,12 +1149,11 @@ async function refreshProficiency() {
 
                 const prof         = getProficiency(machine.row, worker.col);
                 const profVal      = String(prof).toLowerCase();
-                const notQualified = !prof;
                 const absence      = getActiveAbsence(worker.name);
 
                 let prereqBlocked = false;
                 let prereqTitle   = '';
-                if (profVal === 't' || profVal === 'trainee') {
+                if (profVal === 't' || profVal === 'trainee' || profVal === '') {
                     const hasExpert = machineHasLevel(machine.row, function(v) { return v === 'e' || v === 'expert'; });
                     if (!hasExpert) { prereqBlocked = true; prereqTitle = 'Requires an Expert to be assigned first'; }
                 } else if (profVal === 'c' || profVal === 'competent') {
@@ -1158,14 +1161,14 @@ async function refreshProficiency() {
                     if (!hasProfOrExp) { prereqBlocked = true; prereqTitle = 'Requires a Proficient or Expert to be assigned first'; }
                 }
 
-                const blocked = absence || notQualified || prereqBlocked;
+                const blocked = absence || prereqBlocked;
 
                 badgeSpan.className   = getProficiencyBadgeClass(prof) + ' me-1';
                 badgeSpan.textContent = getProficiencyDisplay(prof);
 
                 if (!absence) {
-                    cb.disabled = notQualified || prereqBlocked;
-                    cb.title    = prereqTitle || (notQualified ? 'Not qualified for this machine' : '');
+                    cb.disabled = prereqBlocked;
+                    cb.title    = prereqTitle;
                 }
                 const item = cb.closest('.worker-item');
                 if (item) {
