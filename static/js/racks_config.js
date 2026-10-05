@@ -121,6 +121,10 @@ async function submitAddType() {
     var name = document.getElementById('typeNameInput').value.trim();
     if (!name) return;
     setError('typeError', null);
+    var btn = document.getElementById('addTypeBtn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Adding…';
     try {
         var res  = await fetch('/api/racks/config/types', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
         var data = await res.json();
@@ -131,6 +135,7 @@ async function submitAddType() {
         populateDimTypeSelect();
         showAlert('success', '<i class="fas fa-check-circle me-1"></i> Type <strong>' + escHtml(name) + '</strong> added.');
     } catch (err) { setError('typeError', err.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 async function deleteType(name) {
@@ -241,6 +246,10 @@ async function submitAddDim() {
     var width     = document.getElementById('dimWidthInput').value.trim();
     if (!type || !thickness) { setError('dimError', 'Type and thickness are required.'); return; }
     setError('dimError', null);
+    var btn = document.getElementById('addDimBtn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Adding…';
     try {
         var res  = await fetch('/api/racks/config/dimensions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ type: type, thickness: thickness, width: width }) });
         var data = await res.json();
@@ -251,6 +260,7 @@ async function submitAddDim() {
         renderDims();
         showAlert('success', '<i class="fas fa-check-circle me-1"></i> Dimension added.');
     } catch (err) { setError('dimError', err.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 async function deleteDim(type, thickness, width) {
@@ -348,6 +358,10 @@ async function submitAddUnit() {
     var height = document.getElementById('unitHeightInput').value.trim();
     if (!name) { setError('unitError', 'Name is required.'); return; }
     setError('unitError', null);
+    var btn = document.getElementById('addUnitBtn');
+    var orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Adding…';
     try {
         var res  = await fetch('/api/racks/config/units', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name, length: length, width: width, height: height }) });
         var data = await res.json();
@@ -357,6 +371,7 @@ async function submitAddUnit() {
         renderUnits();
         showAlert('success', '<i class="fas fa-check-circle me-1"></i> Unit <strong>' + escHtml(name) + '</strong> added.');
     } catch (err) { setError('unitError', err.message); }
+    finally { btn.disabled = false; btn.innerHTML = orig; }
 }
 
 async function deleteUnit(name) {
@@ -455,6 +470,10 @@ function makeSimpleConfigManager(cfg) {
         var name = document.getElementById(cfg.inputId).value.trim();
         if (!name) return;
         setError(cfg.errorId, null);
+        var btn = document.getElementById(cfg.btnId);
+        var orig = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status"></span> Adding…';
         try {
             var res  = await fetch(cfg.apiBase, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: name }) });
             var data = await res.json();
@@ -464,6 +483,7 @@ function makeSimpleConfigManager(cfg) {
             render();
             showAlert('success', '<i class="fas fa-check-circle me-1"></i> ' + cfg.label + ' <strong>' + escHtml(name) + '</strong> added.');
         } catch (err) { setError(cfg.errorId, err.message); }
+        finally { btn.disabled = false; btn.innerHTML = orig; }
     }
 
     async function deleteItem(name) {
@@ -483,23 +503,23 @@ function makeSimpleConfigManager(cfg) {
 var statusMgr = makeSimpleConfigManager({
     key: 'statuses', apiBase: '/api/racks/config/statuses', responseKey: 'statuses',
     listId: 'statusesList', inputId: 'statusNameInput', errorId: 'statusError',
-    icon: 'fas fa-circle', label: 'Status', editAttr: 'status',
+    btnId: 'addStatusBtn', icon: 'fas fa-circle', label: 'Status', editAttr: 'status',
 });
 
 var nextLocMgr = makeSimpleConfigManager({
     key: 'next_locations', apiBase: '/api/racks/config/next-locations', responseKey: 'next_locations',
     listId: 'nextLocsList', inputId: 'nextLocNameInput', errorId: 'nextLocError',
-    icon: 'fas fa-map-marker-alt', label: 'Next Location', editAttr: 'next-loc',
+    btnId: 'addNextLocBtn', icon: 'fas fa-map-marker-alt', label: 'Next Location', editAttr: 'next-loc',
 });
 
 var noteMgr = makeSimpleConfigManager({
     key: 'notes', apiBase: '/api/racks/config/notes', responseKey: 'notes',
     listId: 'notesList', inputId: 'noteNameInput', errorId: 'noteError',
-    icon: 'fas fa-sticky-note', label: 'Note', editAttr: 'note',
+    btnId: 'addNoteBtn', icon: 'fas fa-sticky-note', label: 'Note', editAttr: 'note',
 });
 
 var customerMgr = makeSimpleConfigManager({
     key: 'customers', apiBase: '/api/racks/config/customers', responseKey: 'customers',
     listId: 'customersList', inputId: 'customerNameInput', errorId: 'customerError',
-    icon: 'fas fa-user', label: 'Customer', editAttr: 'customer',
+    btnId: 'addCustomerBtn', icon: 'fas fa-user', label: 'Customer', editAttr: 'customer',
 });
