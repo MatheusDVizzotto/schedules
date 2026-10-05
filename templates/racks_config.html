@@ -34,6 +34,10 @@
         .cfg-edit-fields { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 5px; }
         .cfg-edit-fields .form-group { display: flex; flex-direction: column; gap: 2px; }
         .cfg-edit-fields label { font-size: 0.72rem; font-weight: 600; color: var(--text-muted); margin-bottom: 0; }
+
+        .cfg-tab-card { border-top-left-radius: 0; }
+        .nav-tabs .nav-link { font-size: 0.85rem; }
+        .nav-tabs .nav-link i { font-size: 0.78rem; }
     </style>
 </head>
 <body>
@@ -60,16 +64,51 @@
 
         <div id="alertArea" class="mb-3"></div>
 
-        <div class="row g-3">
+        <!-- Tab navigation -->
+        <ul class="nav nav-tabs" id="cfgTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="tab-types-btn" data-bs-toggle="tab" data-bs-target="#tab-types" type="button" role="tab">
+                    <i class="fas fa-tag me-1"></i><span class="d-none d-sm-inline">Types</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-dims-btn" data-bs-toggle="tab" data-bs-target="#tab-dims" type="button" role="tab">
+                    <i class="fas fa-ruler-combined me-1"></i><span class="d-none d-sm-inline">Dimensions</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-units-btn" data-bs-toggle="tab" data-bs-target="#tab-units" type="button" role="tab">
+                    <i class="fas fa-cube me-1"></i><span class="d-none d-sm-inline">Units</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-status-btn" data-bs-toggle="tab" data-bs-target="#tab-status" type="button" role="tab">
+                    <i class="fas fa-circle me-1"></i><span class="d-none d-sm-inline">Status</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-nextloc-btn" data-bs-toggle="tab" data-bs-target="#tab-nextloc" type="button" role="tab">
+                    <i class="fas fa-map-marker-alt me-1"></i><span class="d-none d-sm-inline">Next Location</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-notes-btn" data-bs-toggle="tab" data-bs-target="#tab-notes" type="button" role="tab">
+                    <i class="fas fa-sticky-note me-1"></i><span class="d-none d-sm-inline">Notes</span>
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="tab-customers-btn" data-bs-toggle="tab" data-bs-target="#tab-customers" type="button" role="tab">
+                    <i class="fas fa-user me-1"></i><span class="d-none d-sm-inline">Customer Name</span>
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab panes -->
+        <div class="tab-content">
 
             <!-- Types -->
-            <div class="col-12 col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-tag me-2" style="color:#2d5a27;"></i>
-                        <strong>Types</strong>
-                        <span class="text-muted small ms-2">Item type names</span>
-                    </div>
+            <div class="tab-pane fade show active" id="tab-types" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new type</div>
                         <div class="cfg-form-row">
@@ -88,13 +127,8 @@
             </div>
 
             <!-- Dimensions -->
-            <div class="col-12 col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-ruler-combined me-2" style="color:#2d5a27;"></i>
-                        <strong>Dimensions</strong>
-                        <span class="text-muted small ms-2">Thickness × Width per type</span>
-                    </div>
+            <div class="tab-pane fade" id="tab-dims" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new dimension</div>
                         <div class="cfg-form-row">
@@ -121,13 +155,8 @@
             </div>
 
             <!-- Units -->
-            <div class="col-12 col-md-4">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-cube me-2" style="color:#2d5a27;"></i>
-                        <strong>Units</strong>
-                        <span class="text-muted small ms-2">Container size (mm)</span>
-                    </div>
+            <div class="tab-pane fade" id="tab-units" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new unit</div>
                         <div class="cfg-form-row">
@@ -157,19 +186,9 @@
                 </div>
             </div>
 
-        </div>
-
-        <!-- Rack System Fields -->
-        <div class="row g-3 mt-1">
-
-            <!-- Statuses -->
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-circle me-2" style="color:#2d5a27;"></i>
-                        <strong>Status</strong>
-                        <span class="text-muted small ms-2">Rack status values</span>
-                    </div>
+            <!-- Status -->
+            <div class="tab-pane fade" id="tab-status" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new status</div>
                         <div class="cfg-form-row">
@@ -187,14 +206,9 @@
                 </div>
             </div>
 
-            <!-- Next Locations -->
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-map-marker-alt me-2" style="color:#2d5a27;"></i>
-                        <strong>Next Location</strong>
-                        <span class="text-muted small ms-2">Destination options</span>
-                    </div>
+            <!-- Next Location -->
+            <div class="tab-pane fade" id="tab-nextloc" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new next location</div>
                         <div class="cfg-form-row">
@@ -213,13 +227,8 @@
             </div>
 
             <!-- Notes -->
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-sticky-note me-2" style="color:#2d5a27;"></i>
-                        <strong>Notes</strong>
-                        <span class="text-muted small ms-2">Predefined note options</span>
-                    </div>
+            <div class="tab-pane fade" id="tab-notes" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new note</div>
                         <div class="cfg-form-row">
@@ -237,14 +246,9 @@
                 </div>
             </div>
 
-            <!-- Customers -->
-            <div class="col-12 col-sm-6 col-md-3">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-user me-2" style="color:#2d5a27;"></i>
-                        <strong>Customer Name</strong>
-                        <span class="text-muted small ms-2">Customer list</span>
-                    </div>
+            <!-- Customer Name -->
+            <div class="tab-pane fade" id="tab-customers" role="tabpanel">
+                <div class="card cfg-tab-card">
                     <div class="card-body">
                         <div class="cfg-section-label">Register new customer</div>
                         <div class="cfg-form-row">
