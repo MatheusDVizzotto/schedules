@@ -113,7 +113,7 @@ def invalidate_cache():
 _racks_lock = threading.Lock()
 _cached_racks_handler = None
 _cached_racks_at = 0.0
-RACKS_CACHE_TTL = 30  # seconds — shorter to reduce simultaneous memory with master workbook
+RACKS_CACHE_TTL = 30  # seconds — Sheets API; no workbook in memory, cache just avoids file-ID lookups
 
 
 def get_cached_racks_handler():
@@ -125,8 +125,6 @@ def get_cached_racks_handler():
             from racks_handler import RacksHandler
             h = RacksHandler(schedule_file_id=GOOGLE_DRIVE_FILE_ID)
             h.load()
-            if _cached_racks_handler is not None:
-                _cached_racks_handler.workbook = None
             _cached_racks_handler = h
             _cached_racks_at = now
         return _cached_racks_handler
@@ -142,8 +140,6 @@ def invalidate_racks_cache():
     """Force the next rack read to re-download from Google Drive."""
     global _cached_racks_handler, _cached_racks_at
     with _racks_lock:
-        if _cached_racks_handler is not None:
-            _cached_racks_handler.workbook = None
         _cached_racks_handler = None
         _cached_racks_at = 0.0
 
