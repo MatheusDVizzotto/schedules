@@ -827,10 +827,14 @@ def get_racks_config():
             invalidate_racks_cache()
             handler = get_cached_racks_handler()
         return jsonify({
-            'success':    True,
-            'types':      handler.get_config_types(),
-            'dimensions': handler.get_config_dimensions(),
-            'units':      handler.get_config_units(),
+            'success':        True,
+            'types':          handler.get_config_types(),
+            'dimensions':     handler.get_config_dimensions(),
+            'units':          handler.get_config_units(),
+            'statuses':       handler.get_config_statuses(),
+            'next_locations': handler.get_config_next_locations(),
+            'notes':          handler.get_config_notes(),
+            'customers':      handler.get_config_customers(),
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1003,6 +1007,242 @@ def delete_config_unit():
         handler.close()
         invalidate_racks_cache()
         return jsonify({'success': True, 'units': units})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – Racks Config — Statuses
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks/config/statuses', methods=['POST'])
+@login_required
+def add_config_status():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        statuses = handler.add_config_status(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'statuses': statuses})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/statuses/update', methods=['POST'])
+@login_required
+def update_config_status():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        statuses = handler.update_config_status(data['old_name'], data['new_name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'statuses': statuses})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/statuses/delete', methods=['POST'])
+@login_required
+def delete_config_status():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        statuses = handler.delete_config_status(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'statuses': statuses})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – Racks Config — Next Locations
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks/config/next-locations', methods=['POST'])
+@login_required
+def add_config_next_location():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.add_config_next_location(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'next_locations': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/next-locations/update', methods=['POST'])
+@login_required
+def update_config_next_location():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.update_config_next_location(data['old_name'], data['new_name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'next_locations': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/next-locations/delete', methods=['POST'])
+@login_required
+def delete_config_next_location():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.delete_config_next_location(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'next_locations': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – Racks Config — Notes
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks/config/notes', methods=['POST'])
+@login_required
+def add_config_note():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.add_config_note(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'notes': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/notes/update', methods=['POST'])
+@login_required
+def update_config_note():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.update_config_note(data['old_name'], data['new_name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'notes': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/notes/delete', methods=['POST'])
+@login_required
+def delete_config_note():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.delete_config_note(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'notes': items})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ---------------------------------------------------------------------------
+# API – Racks Config — Customers
+# ---------------------------------------------------------------------------
+
+@app.route('/api/racks/config/customers', methods=['POST'])
+@login_required
+def add_config_customer():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.add_config_customer(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'customers': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/customers/update', methods=['POST'])
+@login_required
+def update_config_customer():
+    try:
+        data = request.get_json()
+        if not data or not data.get('old_name') or not data.get('new_name'):
+            return jsonify({'success': False, 'error': 'old_name and new_name are required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.update_config_customer(data['old_name'], data['new_name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'customers': items})
+    except ValueError as e:
+        return jsonify({'success': False, 'error': str(e)}), 400
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/racks/config/customers/delete', methods=['POST'])
+@login_required
+def delete_config_customer():
+    try:
+        data = request.get_json()
+        if not data or not data.get('name'):
+            return jsonify({'success': False, 'error': 'name is required'}), 400
+        handler = get_rack_handler()
+        handler.load()
+        items = handler.delete_config_customer(data['name'])
+        handler.close()
+        invalidate_racks_cache()
+        return jsonify({'success': True, 'customers': items})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

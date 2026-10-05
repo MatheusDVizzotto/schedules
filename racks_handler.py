@@ -18,9 +18,13 @@ HEADERS       = ['Bay Code', 'Size Preferable', 'Actual Size', 'Quantity', 'Quan
 STOCK_SHEET   = '_stock_'
 STOCK_HEADERS = ['Size', 'Item Type', 'Dimensions', 'Min On Hand', 'Max On Hand']
 
-CFG_TYPES_SHEET  = '_cfg_types_'
-CFG_DIMS_SHEET   = '_cfg_dims_'
-CFG_UNITS_SHEET  = '_cfg_units_'
+CFG_TYPES_SHEET      = '_cfg_types_'
+CFG_DIMS_SHEET       = '_cfg_dims_'
+CFG_UNITS_SHEET      = '_cfg_units_'
+CFG_STATUSES_SHEET   = '_cfg_statuses_'
+CFG_NEXT_LOCS_SHEET  = '_cfg_next_locs_'
+CFG_NOTES_SHEET      = '_cfg_notes_'
+CFG_CUSTOMERS_SHEET  = '_cfg_customers_'
 CFG_TYPES_HEADERS = ['Name']
 CFG_DIMS_HEADERS  = ['Type', 'Thickness', 'Width']
 CFG_UNITS_HEADERS = ['Name', 'Length', 'Width', 'Height']
@@ -289,7 +293,9 @@ class RacksHandler:
         return self.get_config_types()
 
     def needs_config_seed(self) -> bool:
-        return any(s not in self.workbook.sheetnames for s in [CFG_TYPES_SHEET, CFG_DIMS_SHEET, CFG_UNITS_SHEET])
+        required = [CFG_TYPES_SHEET, CFG_DIMS_SHEET, CFG_UNITS_SHEET,
+                    CFG_STATUSES_SHEET, CFG_NEXT_LOCS_SHEET, CFG_NOTES_SHEET, CFG_CUSTOMERS_SHEET]
+        return any(s not in self.workbook.sheetnames for s in required)
 
     def seed_config_if_needed(self) -> bool:
         if not self.needs_config_seed():
@@ -297,6 +303,10 @@ class RacksHandler:
         self._ensure_cfg_types_sheet()
         self._ensure_cfg_dims_sheet()
         self._ensure_cfg_units_sheet()
+        self._ensure_simple_sheet(CFG_STATUSES_SHEET, [])
+        self._ensure_simple_sheet(CFG_NEXT_LOCS_SHEET, [])
+        self._ensure_simple_sheet(CFG_NOTES_SHEET, [])
+        self._ensure_simple_sheet(CFG_CUSTOMERS_SHEET, [])
         self.gdrive.upload_file(self.file_id, self._serialise())
         return True
 
@@ -445,6 +455,123 @@ class RacksHandler:
                     c = ws.cell(row=i, column=col, value=val)
                     c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
         return self.workbook[CFG_UNITS_SHEET]
+
+    # ------------------------------------------------------------------
+    # Config — generic simple-name list helpers
+    # ------------------------------------------------------------------
+
+    def _ensure_simple_sheet(self, sheet_name: str, defaults: list[str]):
+        if sheet_name not in self.workbook.sheetnames:
+            ws = self.workbook.create_sheet(sheet_name)
+            c = ws.cell(row=1, column=1, value='Name')
+            c.fill = HEADER_FILL; c.font = Font(bold=True); c.alignment = CENTER_ALIGN; c.border = THIN_BORDER
+            ws.column_dimensions['A'].width = 24
+            for i, name in enumerate(defaults, start=2):
+                c = ws.cell(row=i, column=1, value=name)
+                c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
+        return self.workbook[sheet_name]
+
+    def _get_simple_list(self, sheet_name: str) -> list[str]:
+        ws = self._ensure_simple_sheet(sheet_name, [])
+        return [str(r[0]).strip() for r in ws.iter_rows(min_row=2, values_only=True) if r[0]]
+
+    def _add_simple_item(self, sheet_name: str, name: str) -> list[str]:
+        name = name.strip()
+        if not name:
+            raise ValueError('Name cannot be empty')
+        ws = self._ensure_simple_sheet(sheet_name, [])
+        if any(str(r[0]).strip().lower() == name.lower() for r in ws.iter_rows(min_row=2, values_only=True) if r[0]):
+            raise ValueError(f"'{name}' already exists")
+        row = ws.max_row + 1
+        c = ws.cell(row=row, column=1, value=name)
+        c.border = THIN_BORDER; c.alignment = CENTER_ALIGN
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self._get_simple_list(sheet_name)
+
+    def _delete_simple_item(self, sheet_name: str, name: str) -> list[str]:
+        ws = self._ensure_simple_sheet(sheet_name, [])
+        for row in ws.iter_rows(min_row=2):
+            if row[0].value and str(row[0].value).strip().lower() == name.strip().lower():
+                ws.delete_rows(row[0].row)
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self._get_simple_list(sheet_name)
+
+    def _update_simple_item(self, sheet_name: str, old_name: str, new_name: str) -> list[str]:
+        new_name = new_name.strip()
+        if not new_name:
+            raise ValueError('Name cannot be empty')
+        ws = self._ensure_simple_sheet(sheet_name, [])
+        for row in ws.iter_rows(min_row=2):
+            if row[0].value and str(row[0].value).strip().lower() == old_name.strip().lower():
+                row[0].value = new_name
+                break
+        self.gdrive.upload_file(self.file_id, self._serialise())
+        return self._get_simple_list(sheet_name)
+
+    # ------------------------------------------------------------------
+    # Config — Statuses
+    # ------------------------------------------------------------------
+
+    def get_config_statuses(self) -> list[str]:
+        return self._get_simple_list(CFG_STATUSES_SHEET)
+
+    def add_config_status(self, name: str) -> list[str]:
+        return self._add_simple_item(CFG_STATUSES_SHEET, name)
+
+    def delete_config_status(self, name: str) -> list[str]:
+        return self._delete_simple_item(CFG_STATUSES_SHEET, name)
+
+    def update_config_status(self, old_name: str, new_name: str) -> list[str]:
+        return self._update_simple_item(CFG_STATUSES_SHEET, old_name, new_name)
+
+    # ------------------------------------------------------------------
+    # Config — Next Locations
+    # ------------------------------------------------------------------
+
+    def get_config_next_locations(self) -> list[str]:
+        return self._get_simple_list(CFG_NEXT_LOCS_SHEET)
+
+    def add_config_next_location(self, name: str) -> list[str]:
+        return self._add_simple_item(CFG_NEXT_LOCS_SHEET, name)
+
+    def delete_config_next_location(self, name: str) -> list[str]:
+        return self._delete_simple_item(CFG_NEXT_LOCS_SHEET, name)
+
+    def update_config_next_location(self, old_name: str, new_name: str) -> list[str]:
+        return self._update_simple_item(CFG_NEXT_LOCS_SHEET, old_name, new_name)
+
+    # ------------------------------------------------------------------
+    # Config — Notes
+    # ------------------------------------------------------------------
+
+    def get_config_notes(self) -> list[str]:
+        return self._get_simple_list(CFG_NOTES_SHEET)
+
+    def add_config_note(self, name: str) -> list[str]:
+        return self._add_simple_item(CFG_NOTES_SHEET, name)
+
+    def delete_config_note(self, name: str) -> list[str]:
+        return self._delete_simple_item(CFG_NOTES_SHEET, name)
+
+    def update_config_note(self, old_name: str, new_name: str) -> list[str]:
+        return self._update_simple_item(CFG_NOTES_SHEET, old_name, new_name)
+
+    # ------------------------------------------------------------------
+    # Config — Customers
+    # ------------------------------------------------------------------
+
+    def get_config_customers(self) -> list[str]:
+        return self._get_simple_list(CFG_CUSTOMERS_SHEET)
+
+    def add_config_customer(self, name: str) -> list[str]:
+        return self._add_simple_item(CFG_CUSTOMERS_SHEET, name)
+
+    def delete_config_customer(self, name: str) -> list[str]:
+        return self._delete_simple_item(CFG_CUSTOMERS_SHEET, name)
+
+    def update_config_customer(self, old_name: str, new_name: str) -> list[str]:
+        return self._update_simple_item(CFG_CUSTOMERS_SHEET, old_name, new_name)
 
     # ------------------------------------------------------------------
 
